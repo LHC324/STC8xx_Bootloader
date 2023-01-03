@@ -1,0 +1,9 @@
+".\Objects\usart.obj",
+".\Objects\extend.obj",
+".\Objects\eeprom.obj",
+".\Objects\GPIO.obj",
+".\Objects\main.obj" 
+TO ".\Objects\STC8xx_BootLoader" 
+PRINT(".\Listings\STC8xx_BootLoader.m51") RAMSIZE(256) 
+CODE( 0xD400-0xFBFF )
+XDATA( 0x0-0x1FFF )

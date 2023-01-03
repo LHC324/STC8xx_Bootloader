@@ -1,0 +1,17 @@
+{
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "stc8.h": "c",
+        "STC8.H": "cpp",
+        "config.h": "c",
+        "ymodem.h": "c",
+        "usart.h": "c",
+        "eeprom.h": "c",
+        "gpio.h": "c",
+        "INTRINS.H": "cpp",
+        "absacc.h": "c",
+        "stdlib.h": "c",
+        "string.h": "c",
+        "STRING.H": "cpp"
+    }
+}
