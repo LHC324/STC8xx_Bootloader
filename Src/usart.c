@@ -1,5 +1,8 @@
 #include "usart.h"
-
+#include "GPIO.h"
+#if (DWIN_USING_RB)
+#include "utils_ringbuffer.h"
+#endif
 /*********************************************************
 * 函数名：
 * 功能：
@@ -20,14 +23,24 @@
 void (*IspProgram)(void) = ISP_PROGRAM_ADDR;
 char cnt7f = 0;
 #else
-Uartx_HandleTypeDef xdata Boot_Rx = {0};
+// Uartx_HandleTypeDef Boot_Rx = {0};
+// uint8_t uart2_buf[1024];
+#if (DWIN_USING_RB)
+struct ringbuffer rm_rb = {
+    Boot_Rx.Rx_buffer,
+    sizeof(Boot_Rx.Rx_buffer) - 1U,
+    0,
+    0,
+};
+#endif
 #endif
 
 Uart_HandleTypeDef Uart1; // 串口1句柄
 Uart_HandleTypeDef Uart2; // 串口2句柄
-Uart_HandleTypeDef Uart3; // 串口3句柄
-Uart_HandleTypeDef Uart4; // 串口4句柄
+// Uart_HandleTypeDef Uart3; // 串口3句柄
+// Uart_HandleTypeDef Uart4; // 串口4句柄
 
+#if !defined USING_SIMULATE
 /*********************************************************
  * 函数名：void Uart_1Init(void)
  * 功能：  串口1的初始化
@@ -52,6 +65,35 @@ void Uart1_Init(void) // 串口1选择定时器1作为波特率发生器
 
     Uart_Base_MspInit(&Uart1);
 }
+
+#if (UAING_AUTO_DOWNLOAD)
+/**
+ * @brief    软件复位自动下载功能，需要在串口中断里调用，
+ *           需要在STC-ISP助手里设置下载口令：10个0x7F。
+ * @details  Software reset automatic download function,
+ *			 need to be called in serial interrupt,
+ *			 The download password needs to be
+ *			 set in the STC-ISP assistant: 10 0x7F.
+ * @param    None.
+ * @return   None.
+ **/
+void Auto_RST_download(void)
+{
+    static uint8_t semCont = 0;
+    if (SBUF == 0x7F || SBUF == 0x80)
+    {
+        if (++semCont >= 10)
+        {
+            semCont = 0;
+            IAP_CONTR = 0x60;
+        }
+    }
+    else
+    {
+        semCont = 0;
+    }
+}
+#endif
 
 // #if (OTA_UART != 5U)
 /*********************************************************
@@ -88,9 +130,12 @@ void Uart1_ISR() interrupt 4 using 2 // 串口1的定时中断服务函数
 #endif
 
         RI = 0;
+#if (UAING_AUTO_DOWNLOAD)
+        Auto_RST_download();
+#endif
     }
 }
-// #endif
+#endif
 
 /*********************************************************
  * 函数名：void Uart_2Init(void)
@@ -124,34 +169,68 @@ void Uart2_Init(void) // 串口2选择定时器2作为波特率发生器
  * note：
  *		使用的是定时器2作为波特率发生器,4G口用
  **********************************************************/
-void Uart2_ISR() interrupt 8 using 2
-{
-    if (S2CON & S2TI) // 发送中断
-    {
-        S2CON &= ~S2TI;
-        Uart2.Uartx_busy = false; // 发送完成，清除占用
-    }
+// void Uart2_ISR() interrupt 8 using 2
+// {
+//     // static uint16_t i = 0;
+//     // static uint16_t site = 0;
+// #if (DWIN_USING_RB)
+//     struct ringbuffer *const rb = &rm_rb;
+// #endif
+//     if (S2CON & S2TI) // 发送中断
+//     {
+//         S2CON &= ~S2TI;
+//         Uart2.Uartx_busy = false; // 发送完成，清除占用
+//     }
 
-    if (S2CON & S2RI) // 接收中断
-    {
-        S2CON &= ~S2RI;
+//     if (S2CON & S2RI) // 接收中断
+//     {
+//         S2CON &= ~S2RI;
+// #if (DWIN_USING_RB)
+//         // if (Uart4.pbuf && Uart4.rx_count < rx_size)
+//         //     Uart4.pbuf[Uart4.rx_count++] = S4BUF;
+//         if (NULL == rb->buf)
+//             return;
 
-#if (OTA_UART == 2)
-        if (S2BUF == 0x7F)
-        {
-            cnt7f++;
-            if (cnt7f >= 16)
-            {
-                IspProgram();
-            }
-        }
-        else
-        {
-            cnt7f = 0;
-        }
-#endif
-    }
-}
+//         // rb->buf[rb->write_index & rb->size] = S2BUF;
+//         // site = rb->write_index % rb->size;
+//         // uart2_buf[site] = S2BUF;
+//         // if (fingbuffer_get_num(rb) > 128)
+//         //     while (1)
+//         //         ;
+
+//         rb->buf[rb->write_index & rb->size] = S2BUF;
+//         /*
+//          * buffer full strategy: new data will overwrite the oldest data in
+//          * the buffer
+//          */
+//         if ((rb->write_index - rb->read_index) > rb->size)
+//         {
+//             rb->read_index = rb->write_index - rb->size;
+//         }
+
+//         rb->write_index++;
+
+//         // if (fingbuffer_get_num(rb) > 128)
+//         //     while (1)
+//         //         ;
+// #endif
+
+// #if (OTA_UART == 2)
+//         if (S2BUF == 0x7F)
+//         {
+//             cnt7f++;
+//             if (cnt7f >= 16)
+//             {
+//                 IspProgram();
+//             }
+//         }
+//         else
+//         {
+//             cnt7f = 0;
+//         }
+// #endif
+//     }
+// }
 // #endif
 
 /**********************************公用函数************************/
@@ -166,7 +245,10 @@ void Uart2_ISR() interrupt 8 using 2
  **********************************************************/
 void Uart_Base_MspInit(Uart_HandleTypeDef *const uart_baseHandle)
 {
-    if (uart_baseHandle->Instance == UART1)
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    switch (uart_baseHandle->Instance)
+    {
+    case UART1:
     {
         SCON = uart_baseHandle->Register_SCON;
         TMOD |= uart_baseHandle->Uart_Mode;
@@ -181,36 +263,85 @@ void Uart_Base_MspInit(Uart_HandleTypeDef *const uart_baseHandle)
 #else
         ES = uart_baseHandle->Interrupt_Enable; // 串口1中断允许位
 #endif
+        /*设置P3.0为准双向口*/
+        GPIO_InitStruct.Mode = GPIO_PullUp;
+        GPIO_InitStruct.Pin = GPIO_Pin_0;
+        GPIO_Inilize(GPIO_P3, &GPIO_InitStruct);
+
+        /*设置P3.1为推挽输出*/
+        GPIO_InitStruct.Mode = GPIO_OUT_PP;
+        GPIO_InitStruct.Pin = GPIO_Pin_1;
+        GPIO_Inilize(GPIO_P3, &GPIO_InitStruct);
     }
-    else if (uart_baseHandle->Instance == UART2)
+    break;
+    case UART2:
     {
         S2CON = uart_baseHandle->Register_SCON;
         TL2 = uart_baseHandle->Uart_Count;
         TH2 = uart_baseHandle->Uart_Count >> 8;
         AUXR |= uart_baseHandle->Register_AUXR;
-        IE2 |= uart_baseHandle->Interrupt_Enable; // 串口2中断允许位
+        IE2 = (uart_baseHandle->Interrupt_Enable & 0x01); // 串口2中断允许位
         IP2 &= uart_baseHandle->Uart_NVIC.Register_IP;
         IP2H &= uart_baseHandle->Uart_NVIC.Register_IPH;
+        /*设置P1.0为准双向口*/
+        GPIO_InitStruct.Mode = GPIO_PullUp;
+        GPIO_InitStruct.Pin = GPIO_Pin_0;
+        GPIO_Inilize(GPIO_P1, &GPIO_InitStruct);
+
+        /*设置P1.1为推挽输出*/
+        GPIO_InitStruct.Mode = GPIO_OUT_PP;
+        GPIO_InitStruct.Pin = GPIO_Pin_1;
+        GPIO_Inilize(GPIO_P1, &GPIO_InitStruct);
     }
-    else if (uart_baseHandle->Instance == UART3)
-    {
-        S3CON = uart_baseHandle->Register_SCON;
-        T4T3M = uart_baseHandle->Uart_Mode;
-        T3L = uart_baseHandle->Uart_Count;
-        T3H = uart_baseHandle->Uart_Count >> 8;
-        IE2 |= uart_baseHandle->Interrupt_Enable; // 串口3中断允许位
-    }
-    else if (uart_baseHandle->Instance == UART4)
-    {
-        S4CON = uart_baseHandle->Register_SCON;
-        T4T3M |= uart_baseHandle->Uart_Mode; // 此处串口3和串口4共用
-        T4L = uart_baseHandle->Uart_Count;
-        T4H = uart_baseHandle->Uart_Count >> 8;
-        IE2 |= uart_baseHandle->Interrupt_Enable; // 串口4中断允许位
+    break;
+    // case UART3:
+    // {
+    //     S3CON = uart_baseHandle->Register_SCON;
+    //     T4T3M = uart_baseHandle->Uart_Mode;
+    //     T3L = uart_baseHandle->Uart_Count;
+    //     T3H = uart_baseHandle->Uart_Count >> 8;
+    //     IE2 |= (uart_baseHandle->Interrupt_Enable & 0x08); // 串口3中断允许位
+
+    //     /*设置P0.0为准双向口*/
+    //     GPIO_InitStruct.Mode = GPIO_PullUp;
+    //     GPIO_InitStruct.Pin = GPIO_Pin_0;
+    //     GPIO_Inilize(GPIO_P0, &GPIO_InitStruct);
+
+    //     // GPIO_InitStruct.Mode = GPIO_OUT_OD;
+    //     // GPIO_InitStruct.Pin = GPIO_Pin_0;
+    //     // GPIO_Inilize(GPIO_P0, &GPIO_InitStruct);
+
+    //     /*设置P0.1为推挽输出*/
+    //     GPIO_InitStruct.Mode = GPIO_OUT_PP;
+    //     GPIO_InitStruct.Pin = GPIO_Pin_1;
+    //     GPIO_Inilize(GPIO_P0, &GPIO_InitStruct);
+    // }
+    // break;
+    // case UART4:
+    // {
+    //     S4CON = uart_baseHandle->Register_SCON;
+    //     T4T3M |= uart_baseHandle->Uart_Mode; // 此处串口3和串口4共用
+    //     T4L = uart_baseHandle->Uart_Count;
+    //     T4H = uart_baseHandle->Uart_Count >> 8;
+    //     IE2 |= (uart_baseHandle->Interrupt_Enable & 0x10); // 串口4中断允许位
+
+    //     /*设置P0.2为准双向口*/
+    //     GPIO_InitStruct.Mode = GPIO_PullUp;
+    //     GPIO_InitStruct.Pin = GPIO_Pin_2;
+    //     GPIO_Inilize(GPIO_P0, &GPIO_InitStruct);
+
+    //     /*设置P0.3为推挽输出*/
+    //     GPIO_InitStruct.Mode = GPIO_OUT_PP;
+    //     GPIO_InitStruct.Pin = GPIO_Pin_3;
+    //     GPIO_Inilize(GPIO_P0, &GPIO_InitStruct);
+    // }
+    // break;
+    default:
+        break;
     }
 }
 
-#if (!OTA_UART)
+#if (DWIN_USING_RB)
 /*********************************************************
  * 函数名：static void Busy_Await(Uart_HandleTypeDef * const Uart, uint16_t overtime)
  * 功能：  字节发送超时等待机制
@@ -250,7 +381,7 @@ void Uartx_SendStr(Uart_HandleTypeDef *const Uart,
 
     while (length--)
     {
-#if (!OTA_UART)
+#if (DWIN_USING_RB)
         Busy_Await(&(*Uart), time_out); // 等待当前字节发送完成
         switch (Uart->Instance)
         {
@@ -303,40 +434,11 @@ void Uartx_SendStr(Uart_HandleTypeDef *const Uart,
 #undef S1CON
 #undef S1TI
 #undef S1BUF
-        // switch (Uart->Instance)
-        // {
-        // case UART1:
-        //     TI = 0;
-        //     SBUF = *p++;
-        //     while (!TI && (--time_out))
-        //         ;
-        //     break;
-        // case UART2:
-        // S2CON &= ~S2TI;
-        //     S2BUF = *p++;
-        //     while (!(S2CON & S2TI) && (--time_out))
-        //         ;
-        //     break;
-        // case UART3:
-        //     S3CON &= ~S3TI;
-        //     S3BUF = *p++;
-        //     while (!(S3CON & S3TI) && (--time_out))
-        //         ;
-        //     break;
-        // case UART4:
-        //     S4CON &= ~S4TI;
-        //     S4BUF = *p++;
-        //     while (!(S4CON & S4TI) && (--time_out))
-        //         ;
-        //     break;
-        // default:
-        //     break;
-        // }
 #endif
     }
 }
 
-#if (USE_PRINTF_DEBUG == 1)
+// #if !defined USING_SIMULATE
 /*********************************************************
  * 函数名：char putchar(char str)
  * 功能：  putchar重定向,被printf调用
@@ -360,39 +462,5 @@ void Uartx_Printf(Uart_HandleTypeDef *const uart, const char *format, ...)
     if (uart)
         Uartx_SendStr(uart, (uint8_t *)buf, length, UART_BYTE_SENDOVERTIME);
 }
-#endif
-
-#if (OTA_UART == 5U)
-// /**
-//  * @brief	串口发送一个字节.
-//  * @version V1.0.0,2022/01/18
-//  * @details
-//  * @param	None
-//  * @retval	None
-//  */
-// void Uart_PutByte(uint8_t str)
-// {
-//     RESET_OTA_TI();
-//     OTA_UART_SBUF = str;
-//     while (!OTA_UART_TI)
-//     {
-//         _nop_();
-//     };
-// }
-
-// /**
-//  * @brief	串口发送字符串.
-//  * @version V1.0.0,2022/01/18
-//  * @details
-//  * @param	None
-//  * @retval	None
-//  */
-// void Uart_PutString(uint8_t *pstr)
-// {
-//     for (; *pstr > 0; pstr++)
-//     {
-//         Uart_PutByte(*pstr);
-//     }
-// }
-#endif
+// #endif
 /**********************************公用函数************************/

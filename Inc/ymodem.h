@@ -32,10 +32,12 @@
 #define RYM_END_SESSION_SEND_CAN_NUM 0x07
 #endif
 
-#define YM_HANDSHAKE_TIMEOUT 2000U     /*握手超时时间*/
-#define YM_RECV_TIMEOUT (30U * 20000U) /*接收超时时间:30s*/
+#define YM_HANDSHAKE_TIMEOUT 200U // 2000U     /*握手超时时间*/
+#define YM_RECV_TIMEOUT 100       //(30U * 20000U) /*接收超时时间:30s*/
 #define NAK_TIMEOUT 10000
-#define MAX_ERRORS 5
+#define WAITTIMES 50000 // 300*5ms
+#define TIMEOUTS 5000   // 5ms5300 1000
+#define MAX_ERRORS 30
 
 #pragma OT(0)
 typedef enum
@@ -69,6 +71,8 @@ struct ymodem_s
     uint16_t packets;
     // volatile uint32_t check_sum;
     volatile uint8_t jmp_code[3];
+    uint8_t *buf;
+    void *rb;
 };
 
 #pragma OT(9)

@@ -21,21 +21,26 @@ Target DLL:      STCMON51.DLL V0, 1, 0, 17
 Dialog DLL:      TP51.DLL V2.60.0.0
  
 <h2>Project:</h2>
-g:\STC_Workers\OTA\STC8XX_IAP\STC8xx_BootLoader\STC8xx_BootLoader.uvproj
-Project File Date:  01/03/2023
+G:\STC_Workers\Nondestructive discharge instrument\STC8xx_BootLoader\STC8xx_BootLoader.uvproj
+Project File Date:  01/14/2023
 
 <h2>Output:</h2>
 Rebuild target 'Target 1'
 compiling usart.c...
-compiling extend.c...
 compiling eeprom.c...
 compiling GPIO.c...
 compiling main.c...
+compiling spi.c...
+compiling w25qx.c...
 linking...
-Program Size: data=143.2 xdata=1265 code=9205
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_DISPLAY_HEX_DATA?MAIN
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?DEV_FLASH_READ_JEDEC_ID?W25QX
+Program Size: data=143.1 xdata=676 code=6531
 creating hex file from ".\Objects\STC8xx_BootLoader"...
-".\Objects\STC8xx_BootLoader" - 0 Error(s), 0 Warning(s).
-Build Time Elapsed:  00:00:02
+".\Objects\STC8xx_BootLoader" - 0 Error(s), 2 Warning(s).
+Build Time Elapsed:  00:00:01
 </pre>
 </body>
 </html>

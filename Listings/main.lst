@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 1   
+C51 COMPILER V9.60.0.0   MAIN                                                              01/14/2023 22:17:11 PAGE 1   
 
 
 C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
@@ -11,793 +11,275 @@ line level    source
    1          #include "GPIO.h"
    2          #include "usart.h"
    3          #include "eeprom.h"
-   4          #include "ymodem.h"
-   5          
-   6          // #define xprintf(fmt, args...) (Uartx_Printf(OTA_WORK_UART, fmt, ##args))
+   4          #include "spi.h"
+   5          #include "w25qx.h"
+   6          
    7          /*************  本地变量声明      **************/
-   8          // sfr IAP_TPS = 0xf5; // EEPROM擦除等待时间控制寄存器
-   9          #define read_app_addr (*(unsigned int code *)(APP_JMP_ADDR))   // 读取app的跳转地址。
-  10          #define read_ota_addr (*(unsigned char code *)(OTA_FLAG_ADDR)) // 读取ota标志。
-  11          void (*jmp_app)(void);                                         // 跳转函数。
-  12          
-  13          // ymodem xdata ymo = {0};
-  14          
-  15          /*************  本地函数声明      **************/
-  16          extern uint8_t *uint32_to_string(uint32_t num);
-  17          ym_err_t Uartx_RecivePackge(void);
-  18          static ym_err_t Ymodem_Download(ymodem_t ym, uartx_rx_t rx);
-  19          
-  20          void report_isp_information(ymodem_t ym)
-  21          {
-  22   1          if (NULL == ym)
-  23   1              return;
-  24   1      
-  25   1          Uartx_Printf(OTA_WORK_UART, "================================\r\n File name: %s\r\n", ym->file_name);
-  26   1          Uartx_Printf(OTA_WORK_UART, "File length: %dBytes\r\n", ym->file_size);
-  27   1          Uartx_Printf(OTA_WORK_UART, "Bootloader Version:   2022-12-29 by LHC\r\n");
-  28   1          Uartx_Printf(OTA_WORK_UART, "================================\r\n\r\n");
-  29   1      }
-  30          
-  31          uint8_t ota_flag;
-  32          static void reset_ota_flag(void)
-  33          {
-  34   1          ota_flag = ~OTA_FLAG_VALUE;
-  35   1          IapWrites(OTA_FLAG_ADDR, &ota_flag, sizeof(ota_flag)); // 擦除ota标志
-  36   1      }
-  37          
-  38          static void set_ota_flag(void)
-  39          {
-  40   1          ota_flag = OTA_FLAG_VALUE;
-  41   1          IapWrites(OTA_FLAG_ADDR, &ota_flag, sizeof(ota_flag)); // 写入ota标志
-  42   1      }
-  43          
-  44          void main(void)
-  45          {
-  46   1          ymodem xdata ymo = {0};
-  47   1          bool status = false;
-  48   1          ymodem_t ym = &ymo;
-  49   1          uartx_rx_t rx = &Boot_Rx;
-  50   1          ym_err_t res;
-  51   1          uint16_t count;
-  52   1      
-  53   1          // Reset_Registers();
-  54   1          Gpio_Init();
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 2   
+   8          static uint8_t data_buf[0x200];
+   9          // sfr IAP_TPS = 0xf5; // EEPROM擦除等待时间控制寄存器
+  10          #define read_jmp_addr (*(unsigned char code *)(USER_FLASH_ADDR))       // 读取jmp指令
+  11          #define read_file_size_addr (*(unsigned char code *)(USER_FLASH_ADDR)) // 读取文件尺寸
+  12          #define read_app_addr (*(unsigned int code *)(APP_JMP_ADDR))           // 读取app的跳转地址
+  13          #define read_ota_addr (*(unsigned char code *)(OTA_FLAG_ADDR))         // 读取ota标志
+  14          void (*jmp_app)(void);                                                 // 跳转函数
+  15          
+  16          /*************  本地函数声明      **************/
+  17          typedef struct
+  18          {
+  19              uint16_t ota_value;
+  20              uint16_t file_size;
+  21          } file_info;
+  22          
+  23          static void reset_ota_flag(void)
+  24          {
+  25   1          file_info info = {0, 0};
+  26   1      
+  27   1          dev_flash_read_bytes((uint8_t *)&info, OTA_FLAG_ADDR, sizeof(info));
+  28   1      
+  29   1          if (OTA_FLAG_VALUE == info.ota_value)
+  30   1          {
+  31   2              info.ota_value = ~OTA_FLAG_VALUE;
+  32   2              dev_flash_auto_adapt_erase(OTA_FLAG_ADDR, sizeof(info));
+  33   2              dev_flash_write_page((uint8_t *)&info, OTA_FLAG_ADDR, sizeof(info));
+  34   2          }
+  35   1      
+  36   1          // uint16_t ota_flag = ~OTA_FLAG_VALUE;
+  37   1          // if (read_ota_addr != (~OTA_FLAG_VALUE))
+  38   1          //     IapWrites(OTA_FLAG_ADDR, (uint8_t *)&ota_flag, sizeof(ota_flag)); // 擦除ota标志
+  39   1      }
+  40          
+  41          static void set_ota_flag(void)
+  42          {
+  43   1          file_info info = {0, 0};
+  44   1      
+  45   1          dev_flash_read_bytes((uint8_t *)&info, OTA_FLAG_ADDR, sizeof(info));
+  46   1      
+  47   1          if ((~OTA_FLAG_VALUE) == info.ota_value)
+  48   1          {
+  49   2              info.ota_value = OTA_FLAG_VALUE;
+  50   2              dev_flash_auto_adapt_erase(OTA_FLAG_ADDR, sizeof(info));
+  51   2              dev_flash_write_page((uint8_t *)&info, OTA_FLAG_ADDR, sizeof(info));
+  52   2          }
+  53   1      
+  54   1          // uint16_t ota_flag = OTA_FLAG_VALUE;
+C51 COMPILER V9.60.0.0   MAIN                                                              01/14/2023 22:17:11 PAGE 2   
 
-  55   1          // #if (OTA_INFO_OUT_UART)
-  56   1          Uart1_Init();
-  57   1          // #endif
-  58   1          /*串口2初始化*/
-  59   1          Uart2_Init();
-  60   1          /*关闭全局中断*/
-  61   1          CLOSE_GLOBAL_OUTAGE();
-  62   1          // IAP_TPS = 24; // STC8G和STC8H的设置，默认24MHz。
-  63   1      
-  64   1          while (1)
-  65   1          {
-  66   2              if (OTA_FLAG_VALUE == read_ota_addr) // IapRead(OTA_FLAG_ADDR)
-  67   2              {
-  68   3                  Uartx_Printf(OTA_WORK_UART, "\r\n Press 'd' to start......\r\n");
-  69   3                  for (count = 0; count < WAITTIMES; count++)
-  70   3                  {
-  71   4                      Uartx_RecivePackge();
-  72   4                      if ((Boot_Rx.Rx_Counts == 1U) && (Boot_Rx.Rx_buffer[0] == 'd'))
-  73   4                      {
-  74   5                          count = 250U;
-  75   5                          // Uart_PutString("STC8xx BootLoader is Running.\r\n");
-  76   5                          res = Ymodem_Download(ym, rx);
-  77   5                          switch (res)
-  78   5                          {
-  79   6                          case ym_ok:
-  80   6                              Uartx_Printf(OTA_WORK_UART, "\r\n Programming Completed Successfully !\r\n");
-  81   6                              report_isp_information(ym);
-  82   6                              reset_ota_flag();
-  83   6                              goto __exe_app;
-  84   6                              break;
-  85   6                          case ym_user_cancel:
-  86   6                              Uartx_Printf(OTA_WORK_UART, "\r\n MCU abort !\r\n");
-  87   6                              break;
-  88   6                          case ym_pc_cancel:
-  89   6                              Uartx_Printf(OTA_WORK_UART, "\r\n User abort !\r\n");
-  90   6                              break;
-  91   6                          case ym_file_size_large:
-  92   6                              Uartx_Printf(OTA_WORK_UART, "\r\n File size is too large !\r\n");
-  93   6                              break;
-  94   6                          case ym_program_err:
-  95   6                              Uartx_Printf(OTA_WORK_UART, "\r\n Programming Error !\r\n");
-  96   6                              break;
-  97   6                          default:
-  98   6                              Uartx_Printf(OTA_WORK_UART, "\r\n other error: %bd.\r\n", res);
-  99   6                              break;
- 100   6                          }
- 101   5                      }
- 102   4                  }
- 103   3                  /*超时退出，取消升级标志*/
- 104   3                  reset_ota_flag();
- 105   3              }
- 106   2      
- 107   2          __exe_app:
- 108   2              if (IapRead(ISP_ADDRESS - 3U) == LJMP)
- 109   2              {
- 110   3                  jmp_app = (uint32_t)read_app_addr;
- 111   3                  Uartx_Printf(OTA_WORK_UART, "\r\n\r\n start jump user app[%#X]......\r\n", (uint16_t)read_app_
-             -addr);
- 112   3                  jmp_app();
- 113   3              }
- 114   2              else
- 115   2                  Uartx_Printf(OTA_WORK_UART, "\r\n\r\n Illegal instruction!\r\n");
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 3   
+  55   1          // if (read_ota_addr != OTA_FLAG_VALUE)
+  56   1          //     IapWrites(OTA_FLAG_ADDR, (uint8_t *)&ota_flag, sizeof(ota_flag)); // 写入ota标志
+  57   1      }
+  58          
+  59          // #if !defined USING_SIMULATE
+  60          static void display_hex_data(uint8_t *dat, uint32_t len)
+  61          {
+  62   1      #define __is_print(ch) ((unsigned int)((ch) - ' ') < 127u - ' ')
+  63   1      #define HEXDUMP_WIDTH 16
+  64   1          uint16_t i, j;
+  65   1      
+  66   1          if (NULL == dat || !len)
+  67   1              return;
+  68   1      
+  69   1          for (i = 0; i < len; i += HEXDUMP_WIDTH)
+  70   1          {
+  71   2              Uartx_Printf(OTA_WORK_UART, "\r\n[%04x]: ", i);
+  72   2              for (j = 0; j < HEXDUMP_WIDTH; ++j)
+  73   2              {
+  74   3                  if (i + j < len)
+  75   3                  {
+  76   4                      Uartx_Printf(OTA_WORK_UART, "%02bX ", dat[i + j]);
+  77   4                  }
+  78   3                  else
+  79   3                  {
+  80   4                      Uartx_Printf(OTA_WORK_UART, "   ");
+  81   4                  }
+  82   3              }
+  83   2              Uartx_Printf(OTA_WORK_UART, "\t\t");
+  84   2              for (j = 0; (i + j < len) && j < HEXDUMP_WIDTH; ++j)
+  85   2                  Uartx_Printf(OTA_WORK_UART, "%c",
+  86   2                               __is_print(dat[i + j]) ? dat[i + j] : '.');
+  87   2          }
+  88   1          if (len)
+  89   1              Uartx_Printf(OTA_WORK_UART, "\r\n\r\n");
+  90   1      }
+  91          // #endif
+  92          
+  93          static void Delay1000ms() //@24MHz
+  94          {
+  95   1          unsigned char i, j, k;
+  96   1      
+  97   1          _nop_();
+  98   1          _nop_();
+  99   1          i = 255;
+ 100   1          j = 193;
+ 101   1          k = 128;
+ 102   1          do
+ 103   1          {
+ 104   2              do
+ 105   2              {
+ 106   3                  while (--k)
+ 107   3                      ;
+ 108   3              } while (--j);
+ 109   2          } while (--i);
+ 110   1      }
+ 111          
+ 112          void main(void)
+ 113          {
+ 114   1          GPIO_InitTypeDef GPIO_InitStruct = {0};
+ 115   1          file_info info = {0, 0};
+ 116   1          uint16_t i;
+C51 COMPILER V9.60.0.0   MAIN                                                              01/14/2023 22:17:11 PAGE 3   
 
- 116   2      
- 117   2              /*程序区损坏或者写入期间断电导致升级失败，写入ota标志，请求更新用户
-             -程序*/
- 118   2              set_ota_flag();
- 119   2      
- 120   2              Uartx_Printf(OTA_WORK_UART, "NO Appliction !\r\n");
- 121   2          }
- 122   1      }
- 123          
- 124          void display_hex_data(uint8_t *dat, uint32_t len)
- 125          {
- 126   1      #define __is_print(ch) ((unsigned int)((ch) - ' ') < 127u - ' ')
- 127   1      #define HEXDUMP_WIDTH 16
- 128   1          uint16_t i, j;
- 129   1      
- 130   1          if (NULL == dat || !len)
- 131   1              return;
- 132   1      
- 133   1          for (i = 0; i < len; i += HEXDUMP_WIDTH)
- 134   1          {
- 135   2              Uartx_Printf(OTA_INFO_OUT_UART, "\r\n[%04x]: ", i);
- 136   2              for (j = 0; j < HEXDUMP_WIDTH; ++j)
- 137   2              {
- 138   3                  if (i + j < len)
- 139   3                  {
- 140   4                      Uartx_Printf(OTA_INFO_OUT_UART, "%02bX ", dat[i + j]);
- 141   4                  }
- 142   3                  else
- 143   3                  {
- 144   4                      Uartx_Printf(OTA_INFO_OUT_UART, "   ");
- 145   4                  }
- 146   3              }
- 147   2              Uartx_Printf(OTA_INFO_OUT_UART, "\t\t");
- 148   2              for (j = 0; (i + j < len) && j < HEXDUMP_WIDTH; ++j)
- 149   2                  Uartx_Printf(OTA_INFO_OUT_UART, "%c",
- 150   2                               __is_print(dat[i + j]) ? dat[i + j] : '.');
- 151   2          }
- 152   1          if (len)
- 153   1              Uartx_Printf(OTA_INFO_OUT_UART, "\r\n\r\n");
- 154   1      }
- 155          
- 156          static uint16_t ym_crc16(unsigned char *q, int len)
- 157          {
- 158   1          uint16_t crc;
- 159   1          char i;
- 160   1      
- 161   1          crc = 0;
- 162   1          while (--len >= 0)
- 163   1          {
- 164   2              crc = crc ^ (int)*q++ << 8;
- 165   2              i = 8;
- 166   2              do
+ 117   1      #define USING_W25QX______________________________________
+ 118   1          {
+ 119   2      #define W25QX_NSS GPIO_Pin_2
+ 120   2      #define W25QX_MOSI GPIO_Pin_3
+ 121   2      #define W25QX_MISO GPIO_Pin_4
+ 122   2      #define W25QX_CLK GPIO_Pin_5
+ 123   2      #define W25QX_PORT GPIO_P2
+ 124   2      
+ 125   2              SPIInit_Type spi = {
+ 126   2                  SPI_Type_Master,
+ 127   2                  SPI_SCLK_DIV_16,
+ 128   2                  SPI_Mode_0,
+ 129   2                  SPI_Tran_MSB,
+ 130   2                  true,
+ 131   2              };
+ 132   2      
+ 133   2              GPIO_InitStruct.Mode = GPIO_OUT_PP;
+ 134   2              GPIO_InitStruct.Pin = W25QX_NSS | W25QX_CLK | W25QX_MOSI;
+ 135   2              GPIO_Inilize(W25QX_PORT, &GPIO_InitStruct);
+ 136   2      
+ 137   2              GPIO_InitStruct.Mode = GPIO_HighZ;
+ 138   2              GPIO_InitStruct.Pin = W25QX_MISO;
+ 139   2              GPIO_Inilize(W25QX_PORT, &GPIO_InitStruct);
+ 140   2      
+ 141   2              GPIO_spi_sw_port(SW_Port2);
+ 142   2              spi_init(&spi);
+ 143   2          }
+ 144   1      #if !defined USING_SIMULATE
+                  Uart1_Init();
+              #endif
+ 147   1          /*串口2初始化*/
+ 148   1          Uart2_Init();
+ 149   1      #if (!DWIN_USING_RB)
+ 150   1          /*关闭全局中断*/
+ 151   1          CLOSE_GLOBAL_OUTAGE();
+ 152   1      #else
+                  IE2 &= ~0x80;
+                  IE2 &= ~0x10;
+                  OPEN_GLOBAL_OUTAGE();
+              #endif
+ 157   1      
+ 158   1          // IAP_TPS = 24; // STC8G和STC8H的设置，默认24MHz。
+ 159   1          Uartx_Printf(OTA_WORK_UART, "SPI FLASH ID: %#x.\r\n", dev_flash_read_device_id());
+ 160   1          while (1)
+ 161   1          {
+ 162   2          __read_ota_flag:
+ 163   2              // Iap_Reads(OTA_FLAG_ADDR, (uint8_t *)&info, sizeof(info)); // 读取文件信息
+ 164   2              dev_flash_read_bytes((uint8_t *)&info, OTA_FLAG_ADDR, sizeof(info));
+ 165   2              Uartx_Printf(OTA_WORK_UART, "ota_flag\tfile_size\r\n%#x\t\t%#X\r\n", info.ota_value, info.file_siz
+             -e);
+ 166   2              if (info.file_size && (OTA_FLAG_VALUE == info.ota_value)) // OTA_FLAG_VALUE == read_ota_addr      
+             -            // IapRead(OTA_FLAG_ADDR)
  167   2              {
- 168   3                  if (crc & 0x8000)
- 169   3                      crc = crc << 1 ^ 0x1021;
- 170   3                  else
- 171   3                      crc = crc << 1;
- 172   3              } while (--i);
- 173   2          }
- 174   1      
- 175   1          return (crc);
- 176   1      }
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 4   
+ 168   3                  Uartx_Printf(OTA_WORK_UART, " start erase...\r\n");
+ 169   3                  for (i = 0; i < info.file_size && i < (USER_FLASH_ADDR - SECTOR_SIZE); i += SECTOR_SIZE) // �
+             -�除N页
+ 170   3                  {
+ 171   4                      dev_flash_read_bytes(data_buf, i, SECTOR_SIZE);
+ 172   4                      // display_hex_data(data_buf, SECTOR_SIZE);
+ 173   4      
+ 174   4                      // Uartx_Printf(OTA_WORK_UART, "read:\r\n");
+ 175   4                      // // Iap_Reads(i, data_buf, SECTOR_SIZE);
+C51 COMPILER V9.60.0.0   MAIN                                                              01/14/2023 22:17:11 PAGE 4   
 
- 177          
- 178          ym_err_t Uartx_RecivePackge(void)
- 179          {
- 180   1          uint16_t j; // 5ms超时
- 181   1      
- 182   1          Boot_Rx.Rx_Counts = 0;
- 183   1          for (j = 0; j < TIMEOUTS; j++) // 最后收到一个字节5ms后,超时退出       5300
- 184   1          {
- 185   2              if (OTA_UART_RI)
- 186   2              {
- 187   3                  RESET_OTA_RI();
- 188   3                  Boot_Rx.Rx_buffer[Boot_Rx.Rx_Counts] = OTA_UART_SBUF;
- 189   3                  if (++Boot_Rx.Rx_Counts >= RX_BUFFER_SIZE)
- 190   3                      // Boot_Rx.Rx_Counts = 0;
- 191   3                      return ym_recv_err;
- 192   3                  j = 0; // 重新定时5ms
- 193   3              }
- 194   2          }
- 195   1      #if (USE_PRINTF_DEBUG == 1)
- 196   1          if (Boot_Rx.Rx_Counts < 140U)
- 197   1              display_hex_data(Boot_Rx.Rx_buffer, Boot_Rx.Rx_Counts);
- 198   1      #endif
- 199   1              // if (Boot_Rx.Rx_Counts)
- 200   1              //     return ym_ok;
- 201   1      #if (WDT_ENABLE == 1)
-                  WDT_reset(D_WDT_SCALE_256);
+ 176   4                      // display_hex_data(data_buf, SECTOR_SIZE);
+ 177   4      
+ 178   4                      if (0 == i)
+ 179   4                      {
+ 180   5                          Iap_Reads(i, data_buf, 3U); // 读出3字节boot地址
+ 181   5                          Uartx_Printf(OTA_WORK_UART, "boot loader addr: 0x%bX 0x%bX 0x%bX .\r\n",
+ 182   5                                       data_buf[0], data_buf[1], data_buf[2]);
+ 183   5                      }
+ 184   4                      // IapErase(i);
+ 185   4      
+ 186   4                      IapWrites(i, data_buf, sizeof(data_buf));
+ 187   4      
+ 188   4                      Uartx_Printf(OTA_WORK_UART, "rate: %02d%%\b\b\b\r", (uint16_t)(((uint32_t)i * 100U) / info
+             -.file_size));
+ 189   4                  }
+ 190   3      
+ 191   3                  /*取消升级标志*/
+ 192   3                  reset_ota_flag();
+ 193   3                  Uartx_Printf(OTA_WORK_UART, "\r\nProgramming completed.\r\n");
+ 194   3                  goto __read_ota_flag;
+ 195   3              }
+ 196   2              // Uartx_Printf(OTA_WORK_UART, "read:\r\n");
+ 197   2              // Iap_Reads(0, data_buf, SECTOR_SIZE);
+ 198   2              // display_hex_data(data_buf, SECTOR_SIZE);
+ 199   2      
+ 200   2              dev_flash_read_bytes(data_buf, 0x00, 3U);
+ 201   2              if (((~OTA_FLAG_VALUE) == info.ota_value) && (data_buf[0] == LJMP))
+ 202   2              {
+ 203   3      #if (DWIN_USING_RB)
+                          /*关闭全局中断*/
+                          CLOSE_GLOBAL_OUTAGE();
               #endif
- 204   1          return ym_ok;
- 205   1      }
- 206          
- 207          // #pragma OT(0)
- 208          // void ym_delay_10ms() //@24.000MHz
- 209          // {
- 210          //     unsigned char i, j, k;
- 211          
- 212          //     i = 2;
- 213          //     j = 56;
- 214          //     k = 172;
- 215          //     do
- 216          //     {
- 217          //         do
- 218          //         {
- 219          //             while (--k)
- 220          //                 ;
- 221          //         } while (--j);
- 222          //     } while (--i);
- 223          // }
- 224          // #pragma OT(9)
- 225          
- 226          static ym_err_t ymodem_check_data_packet(uartx_rx_t rx)
- 227          {
- 228   1      #define RX_HEAD() (rx->Rx_buffer[0])
- 229   1      #define RX_FRAME(_id) (rx->Rx_buffer[_id])
- 230   1      #define RX_LEN() (rx->Rx_Counts)
- 231   1          if (NULL == rx)
- 232   1              return ym_err_other;
- 233   1      
- 234   1          if (RX_LEN() == 1) // 1字节
- 235   1          {
- 236   2              if (RX_HEAD() == EOT) // 收到EOT, 结束
- 237   2                  return YM_ACK;
- 238   2              if ((RX_HEAD() == ABORT1) || (RX_HEAD() == ABORT2)) // 收到A或a, 取消
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 5   
+ 207   3                  jmp_app = (uint32_t)((uint16_t)data_buf[1] << 8U | data_buf[2]);
+ 208   3                  Uartx_Printf(OTA_WORK_UART, "start jump user app[%#X]......\r\n",
+ 209   3                               (uint16_t)data_buf[1] << 8U | data_buf[2]);
+ 210   3                  jmp_app();
+ 211   3              }
+ 212   2              else
+ 213   2              {
+ 214   3                  // set_ota_flag(); // 首次从SPI flash加载到内部ROM
+ 215   3                  // if (read_jmp_addr != 0xFF)
+ 216   3                  //     IapErase(USER_FLASH_ADDR); // 擦除跳转地址，防止变砖
+ 217   3                  Uartx_Printf(OTA_WORK_UART, "illegal instruction!\r\n");
+ 218   3              }
+ 219   2      
+ 220   2              if ((data_buf[0] == LJMP)) // 解决内部rom和外部flash不匹配问题
+ 221   2                  set_ota_flag();
+ 222   2      
+ 223   2              /*程序区损坏或者写入期间断电导致升级失败，写入ota标志，请求更新用户
+             -程序*/
+ 224   2              // set_ota_flag();
+ 225   2      
+ 226   2              Uartx_Printf(OTA_WORK_UART, "no appliction !\r\n");
+ 227   2              Delay1000ms();
+ 228   2          }
+ 229   1      }
+ 230          
+ 231          /**
+ 232           * @brief       复位硬件寄存器
+ 233           * @details     部分外设寄存器在上电时默认值并不为0，需要清除其默认值
+ 234           * @param       None
+ 235           * @retval      None
+C51 COMPILER V9.60.0.0   MAIN                                                              01/14/2023 22:17:11 PAGE 5   
 
- 239   2                  return ym_user_cancel;                          // 用户取消
- 240   2          }
- 241   1          else if (RX_LEN() <= 5) // 小于5字节
- 242   1          {
- 243   2              if ((RX_HEAD() == CANCEL) && (RX_FRAME(1) == CANCEL)) // 收到两个CANCEL
- 244   2                  return ym_pc_cancel;                              // PC端取消
- 245   2          }
- 246   1          else if ((RX_LEN() == 133) || (RX_LEN() == 1029)) // 数据包
- 247   1          {
- 248   2              if (RX_FRAME(PACKET_SEQNO_INDEX) != (RX_FRAME(PACKET_SEQNO_COMP_INDEX) ^ 0xff)) // 判断发送序
-             -号是否正确
- 249   2              {
- 250   3                  return YM_NACK; // 错误, 请求重发
- 251   3              }
- 252   2      #if (USE_PRINTF_DEBUG == 1)
- 253   2              Uartx_Printf(OTA_INFO_OUT_UART, "Get complete data package[%bd].\r\n", RX_FRAME(1));
- 254   2      #endif
- 255   2              return ym_ok;
- 256   2          }
- 257   1      
- 258   1          // return ym_err_other;
- 259   1          return YM_NACK;
- 260   1      }
- 261          
- 262          static ym_err_t ymodem_putchar(ym_err_t ym_code)
- 263          {
- 264   1          char c;
- 265   1          uint8_t i;
- 266   1          static uint8_t errors = 0;
- 267   1          switch (ym_code)
- 268   1          {
- 269   2          case YM_PUT_C:
- 270   2              c = CRC16;
- 271   2              break;
- 272   2          case YM_ACK:
- 273   2              c = ACK;
- 274   2              errors = 0;
- 275   2              break;
- 276   2          case YM_NACK:
- 277   2              c = NAK;
- 278   2              if (errors++ > MAX_ERRORS)
- 279   2                  goto __exit;
- 280   2              break;
- 281   2          case YM_CAN:
- 282   2              c = CANCEL;
- 283   2              for (i = 0; i < RYM_END_SESSION_SEND_CAN_NUM; ++i)
- 284   2                  Uartx_SendStr(OTA_WORK_UART, (uint8_t *)&c, sizeof(c), UART_BYTE_SENDOVERTIME);
- 285   2              return ym_ok;
- 286   2          __exit:
- 287   2          default:
- 288   2              return ym_err_other;
- 289   2          }
- 290   1          Uartx_SendStr(OTA_WORK_UART, (uint8_t *)&c, sizeof(c), UART_BYTE_SENDOVERTIME);
- 291   1          return ym_ok;
- 292   1      }
- 293          
- 294          /**
- 295           * @brief       ymodem开始接收数据前处理工作
- 296           * @version V1.0.0,2022/01/18
- 297           * @details
- 298           * @param       None
- 299           * @retval      None
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 6   
-
- 300           */
- 301          static ym_err_t ymodem_on_begin(ymodem_t ym, uartx_rx_t rx)
- 302          {
- 303   1          uint8_t file_size[FILE_SIZE_LENGTH];
- 304   1          // uint8_t user_isp_code[3];
- 305   1          uint8_t site = PACKET_HEADER;
- 306   1          uint16_t i = 0;
- 307   1      
- 308   1          if ((NULL == ym) || (NULL == rx))
- 309   1              return ym_recv_err;
- 310   1      
- 311   1          if ('\0' == RX_FRAME(PACKET_HEADER))
- 312   1              return ym_file_name_err;
- 313   1      
- 314   1          /*保存文件名*/
- 315   1          for (i = 0; (i < FILE_NAME_LENGTH) && (RX_FRAME(site) != '\0'); i++)
- 316   1              ym->file_name[i] = RX_FRAME(site++);
- 317   1      
- 318   1          memset(file_size, 0x00, FILE_SIZE_LENGTH);
- 319   1          for (i = 0, site++; (RX_FRAME(site) != '\0') && (i < FILE_SIZE_LENGTH); i++)
- 320   1              file_size[i] = RX_FRAME(site++);   // 保存文件长度
- 321   1          ym->file_size = Str_To_Int(file_size); // 文件长度由字符串转成十六进制数据
- 322   1      #if (USE_PRINTF_DEBUG == 1)
- 323   1          Uartx_Printf(OTA_INFO_OUT_UART, "[file name]: %s, [file size]: %d bytes.\r\n",
- 324   1                       ym->file_name, ym->file_size);
- 325   1      #endif
- 326   1          if (ym->file_size >= USER_FLASH_SIZE) // 长度过长错误
- 327   1          {
- 328   2              ymodem_putchar(YM_CAN);    // 错误返回N个 CA
- 329   2              return ym_file_size_large; // 长度过长
- 330   2          }
- 331   1          Iap_Reads(FLASH_START_ADDR, ym->jmp_code, sizeof(ym->jmp_code));
- 332   1      #if (USE_PRINTF_DEBUG == 1)
- 333   1          Uartx_Printf(OTA_INFO_OUT_UART, "boot loader addr: 0x%bX 0x%bX 0x%bX .\r\n",
- 334   1                       ym->jmp_code[0], ym->jmp_code[1], ym->jmp_code[2]);
- 335   1      
- 336   1      #endif
- 337   1          // IapWrites(FLASH_START_ADDR, user_isp_code, sizeof(user_isp_code));
- 338   1      
- 339   1          // #if (USE_PRINTF_DEBUG == 1)
- 340   1          //     memset(user_isp_code, 0x00, sizeof(user_isp_code));
- 341   1          //     Iap_Reads(FLASH_START_ADDR, user_isp_code, sizeof(user_isp_code));
- 342   1          //     Uartx_Printf(OTA_INFO_OUT_UART, "real boot: %bx %bx %bx .\r\n",
- 343   1          //                  user_isp_code[0], user_isp_code[1], user_isp_code[2]);
- 344   1          // #endif
- 345   1          for (i = FLASH_START_ADDR; i < USER_FLASH_SIZE; i += SECTOR_SIZE) // 擦除N页
- 346   1              IapErase(i);
- 347   1      
- 348   1          // memset(ym, 0x00, sizeof(ymodem));
- 349   1          ym->next_flash_addr = FLASH_START_ADDR; //+ 3U 记录数据帧开始写入的首地址(3byte ISP code 
-             -+ 3Byte NULL)
- 350   1          // ym->check_sum = 0;
- 351   1          ym->packets = 0;
- 352   1          ymodem_putchar(YM_ACK); // 擦除完成, 返回应答
- 353   1          return ym_ok;
- 354   1      }
- 355          
- 356          /**
- 357           * @brief       ymodem发送握手信号
- 358           * @version V1.0.0,2022/01/18
- 359           * @details
- 360           * @param       None
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 7   
-
- 361           * @retval      None
- 362           */
- 363          static ym_err_t ymodem_handshake(ymodem_t ym, uartx_rx_t rx)
- 364          {
- 365   1          ym_err_t res;
- 366   1          uint16_t count;
- 367   1          uint32_t recv_timeout;
- 368   1      
- 369   1          if (NULL == ym || NULL == rx)
- 370   1              return ym_err_other;
- 371   1      
- 372   1          for (count = 0; count < (YM_HANDSHAKE_TIMEOUT * 10U); ++count) // 30s超时退出
- 373   1          {
- 374   2              // Uartx_SendStr(OTA_WORK_UART, &c, sieof(c), UART_BYTE_SENDOVERTIME);
- 375   2              ymodem_putchar(YM_PUT_C);
- 376   2              recv_timeout = YM_HANDSHAKE_TIMEOUT;
- 377   2              while (--recv_timeout)
- 378   2              {
- 379   3                  if (Uartx_RecivePackge() != ym_ok)
- 380   3                      return ym_recv_err;
- 381   3      
- 382   3                  res = ymodem_check_data_packet(rx);
- 383   3                  if (res != ym_ok && res != ym_err_other)
- 384   3                      return res;
- 385   3      
- 386   3                  if ((SOH == RX_HEAD()) && (RE_PACKET_128B_SIZE == RX_LEN()))
- 387   3                      return ymodem_on_begin(ym, rx);
- 388   3              }
- 389   2          }
- 390   1          return ym_rec_timeout;
- 391   1      }
- 392          
- 393          void ym_memcpy(void *s1, const void *s2, size_t n)
- 394          {
- 395   1          uint8_t *dest = (uint8_t *)s1;
- 396   1          const uint8_t *source = (const uint8_t *)s2;
- 397   1      
- 398   1          if (NULL == dest || NULL == source)
- 399   1              return;
- 400   1      
- 401   1          while (n--)
- 402   1          {
- 403   2              *dest++ = *source++;
- 404   2          }
- 405   1      }
- 406          
- 407          // uint8_t ymodem_buf[1024];
- 408          // #pragma OT(0)
- 409          /**
- 410           * @brief       用户处理数据帧
- 411           * @details
- 412           * @param       None
- 413           * @retval      None
- 414           */
- 415          static ym_err_t ymodem_on_data(ymodem_t ym, uartx_rx_t rx)
- 416          {
- 417   1          uint16_t base_addr, rqe_crc16, rel_crc16;
- 418   1          uint16_t write_size = RX_LEN() - PACKET_OVERHEAD; // 去掉5字节帧头、帧尾
- 419   1          uint8_t *pdat = &RX_FRAME(PACKET_HEADER), t_jmp_code[3];
- 420   1      
- 421   1          if (NULL == ym || NULL == rx)
- 422   1              return ym_err_other;
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 8   
-
- 423   1      
- 424   1          rqe_crc16 = ym_crc16(&RX_FRAME(PACKET_HEADER), RX_LEN() - 5U);
- 425   1          rel_crc16 = ((uint16_t)RX_FRAME(RX_LEN() - 2U) << 8U) | RX_FRAME(RX_LEN() - 1U);
- 426   1      #if (USE_PRINTF_DEBUG == 1)
- 427   1          Uartx_Printf(OTA_INFO_OUT_UART, "req_crc\trel_crc\r\n%#x\t%#x\r\n", rqe_crc16, rel_crc16);
- 428   1      #endif
- 429   1          if (rqe_crc16 != rel_crc16)
- 430   1              return ym_recv_err;
- 431   1      
- 432   1          if (0 == ym->packets) // 第0帧数据特殊处理
- 433   1          {
- 434   2              ym_memcpy(t_jmp_code, pdat, sizeof(t_jmp_code));           // 取出应用程序跳转地址
- 435   2              ym_memcpy(pdat, ym->jmp_code, sizeof(ym->jmp_code));       // 写回bootloader跳转地址
- 436   2              ym_memcpy(ym->jmp_code, t_jmp_code, sizeof(ym->jmp_code)); // 记录app跳转地址
- 437   2      
- 438   2              // memcpy(t_jmp_code, &pdat[0], sizeof(t_jmp_code));     // 取出应用程序跳转地址
- 439   2              // memcpy(&pdat[0], ym->jmp_code, sizeof(ym->jmp_code)); // 写回bootloader跳转地址
- 440   2              // //                                                         // memcpy(pdat, ym->jmp_code, sizeof
-             -(ym->jmp_code)); // 写回bootloader跳转地址
- 441   2              // //                                                         // pdat[0] = ym->jmp_code[0], pdat[1
-             -] = ym->jmp_code[1], pdat[2] = ym->jmp_code[2];
- 442   2              // memcpy(ym->jmp_code, t_jmp_code, sizeof(ym->jmp_code)); // 记录app跳转地址
- 443   2          }
- 444   1      
- 445   1          // if (ym->next_flash_addr >= USER_FLASH_SIZE)
- 446   1          //     return ym_program_err;
- 447   1      
- 448   1          // IapWrites(ym->next_flash_addr, pdat, write_size);
- 449   1          // ym->next_flash_addr += write_size;
- 450   1      
- 451   1          for (base_addr = ym->next_flash_addr;
- 452   1               pdat && ym->next_flash_addr < base_addr + write_size;
- 453   1               ++ym->next_flash_addr, ++pdat) // 去掉3个字节帧头
- 454   1          {
- 455   2              // if (ym->next_flash_addr < ym->file_size)
- 456   2              //     ym->check_sum += *pdat;
- 457   2      
- 458   2              IapProgram(ym->next_flash_addr, *pdat);
- 459   2      
- 460   2              if (ym->next_flash_addr >= USER_FLASH_SIZE)
- 461   2                  return ym_program_err;
- 462   2          }
- 463   1      
- 464   1      #if (USE_PRINTF_DEBUG == 1)
- 465   1          Uartx_Printf(OTA_INFO_OUT_UART, "start\tend\tsize\tpackets\r\n%#x\t%#x\t%#x\t%#x\r\n",
- 466   1                       (ym->next_flash_addr - write_size), ym->next_flash_addr, write_size, ym->packets);
- 467   1      #endif
- 468   1          return ym_ok;
- 469   1      }
- 470          // #pragma OT(9)
- 471          
- 472          /**
- 473           * @brief       ymodem连续接收数据帧
- 474           * @details
- 475           * @param       None
- 476           * @retval      None
- 477           */
- 478          static ym_err_t ymodem_do_trans(ymodem_t ym, uartx_rx_t rx)
- 479          {
- 480   1          uint32_t timeout = YM_RECV_TIMEOUT;
- 481   1          ym_err_t ym_res, cmd;
- 482   1      
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 9   
-
- 483   1          if (NULL == ym || NULL == rx)
- 484   1              return ym_err_other;
- 485   1      
- 486   1          ymodem_putchar(YM_PUT_C); // 请求pc发送数据帧
- 487   1      #if (USE_PRINTF_DEBUG == 1)
- 488   1          Uartx_Printf(OTA_INFO_OUT_UART, "start recv data.\r\n");
- 489   1      #endif
- 490   1      __wait:
- 491   1          while (--timeout)
- 492   1          {
- 493   2              if (Uartx_RecivePackge() != ym_ok)
- 494   2                  return ym_recv_err;
- 495   2      
- 496   2              if (0 == RX_LEN())
- 497   2                  goto __wait;
- 498   2      
- 499   2              cmd = ymodem_check_data_packet(rx);
- 500   2      
- 501   2      #if (USE_PRINTF_DEBUG == 1)
- 502   2              Uartx_Printf(OTA_INFO_OUT_UART, "cmd: %bd.\r\n", cmd);
- 503   2      #endif
- 504   2      
- 505   2              if (YM_ACK == cmd) // EOT
- 506   2                  return ym_ok;
- 507   2              else if (YM_NACK == cmd)
- 508   2              {
- 509   3                  cmd = ymodem_putchar(YM_NACK); // 数据包不完整：请求重发
- 510   3              }
- 511   2      
- 512   2              if ((cmd != ym_ok)) //&& (cmd != YM_NACK)
- 513   2                  return cmd;
- 514   2              else
- 515   2              {
- 516   3                  ym_res = ymodem_on_data(ym, rx);
- 517   3                  if (ym_ok != ym_res)
- 518   3                      return ym_res;
- 519   3      
- 520   3                  timeout = YM_RECV_TIMEOUT;
- 521   3              }
- 522   2      
- 523   2              if (ym_ok == cmd)
- 524   2                  cmd = YM_ACK;
- 525   2      
- 526   2              ymodem_putchar(cmd); // 保存完成, 返回应答
- 527   2              ym->packets++;
- 528   2          }
- 529   1      
- 530   1          return ym_rec_timeout;
- 531   1      }
- 532          
- 533          /**
- 534           * @brief       ymodem用户收尾工作
- 535           * @details
- 536           * @param       None
- 537           * @retval      None
- 538           */
- 539          static ym_err_t ymodem_on_end(ymodem_t ym, uartx_rx_t rx)
- 540          {
- 541   1          // uint16_t addr;
- 542   1          //    uint8_t site;
- 543   1          //    uint32_t check_sum = 0;
- 544   1      
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 10  
-
- 545   1          if (NULL == ym || NULL == rx)
- 546   1              return ym_err_other;
- 547   1      
- 548   1              // for (site = 0; site < 3U; ++site)
- 549   1              // {
- 550   1              //     IapProgram(ISP_ADDRESS - 3 + site, ym->jmp_code[site]); // 全部下载结束,最后写用�
-             -��入口地址
- 551   1              //     check_sum += IapRead(ISP_ADDRESS - 3 + site);
- 552   1              // }
- 553   1      
- 554   1              // for (addr = 3U; addr < ym->file_size; ++addr)
- 555   1              //     check_sum += IapRead(addr); // 计算FLASH累加和
- 556   1      
- 557   1              // #if (USE_PRINTF_DEBUG == 1)
- 558   1              //     Uartx_Printf(OTA_INFO_OUT_UART, "\r\ncur_sum: ");
- 559   1              //     Uartx_SendStr(OTA_INFO_OUT_UART, uint32_to_string(ym->check_sum), 8U, UART_BYTE_SENDOVERTIM
-             -E);
- 560   1              //     Uartx_Printf(OTA_INFO_OUT_UART, "\treal_sum: ");
- 561   1              //     Uartx_SendStr(OTA_INFO_OUT_UART, uint32_to_string(check_sum), 8U, UART_BYTE_SENDOVERTIME);
- 562   1              //     Uartx_Printf(OTA_INFO_OUT_UART, "\r\n");
- 563   1              //     // Uartx_Printf(OTA_INFO_OUT_UART, "cur_sum: %#X, real_sum: %#X.\r\n",ym->check_sum,check_s
-             -um);
- 564   1              // #endif
- 565   1      
- 566   1      #if (USE_PRINTF_DEBUG == 1)
- 567   1              // for (addr = 0; addr < 5U * 1024U; addr += 1024U)
- 568   1              // {
- 569   1              //     memset(Boot_Rx.Rx_buffer, 0x00, sizeof(Boot_Rx.Rx_buffer));
- 570   1              //     Iap_Reads(addr, Boot_Rx.Rx_buffer, 1024U);
- 571   1              //     display_hex_data(Boot_Rx.Rx_buffer, 1024U);
- 572   1              // }
- 573   1      #endif
- 574   1      
- 575   1          // if (check_sum == ym->check_sum)
- 576   1          //     return ym_ok; // 正确
- 577   1          // else
- 578   1          // {
- 579   1          //     IapErase(ISP_ADDRESS - SECTOR_SIZE);
- 580   1          //     return ym_program_err; // 写入错误
- 581   1          // }
- 582   1      
- 583   1          IapWrites(USER_FLASH_SIZE, ym->jmp_code, sizeof(ym->jmp_code));
- 584   1      
- 585   1      #if (USE_PRINTF_DEBUG == 1)
- 586   1          // Iap_Reads(USER_FLASH_SIZE, ym->jmp_code, sizeof(ym->jmp_code));
- 587   1          // Uartx_Printf(OTA_INFO_OUT_UART, "app loader addr: 0x%bX 0x%bX 0x%bX .\r\n",
- 588   1          //              ym->jmp_code[0], ym->jmp_code[1], ym->jmp_code[2]);
- 589   1      #endif
- 590   1      
- 591   1          return ym_ok; // 正确
- 592   1      }
- 593          
- 594          /**
- 595           * @brief       ymodem收尾工作
- 596           * @details
- 597           * @param       None
- 598           * @retval      None
- 599           */
- 600          static ym_err_t ymodem_do_fin(ymodem_t ym, uartx_rx_t rx)
- 601          {
- 602   1          uint32_t timeout = YM_RECV_TIMEOUT;
- 603   1          ym_err_t cmd;
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 11  
-
- 604   1      
- 605   1          if (NULL == ym || NULL == rx)
- 606   1              return ym_err_other;
- 607   1      
- 608   1          if (ymodem_on_end(ym, rx) != ym_ok)
- 609   1              return ym_err_other;
- 610   1      
- 611   1          ymodem_putchar(YM_NACK);
- 612   1      __wait:
- 613   1          while (--timeout)
- 614   1          {
- 615   2              if (Uartx_RecivePackge() != ym_ok)
- 616   2                  return ym_recv_err;
- 617   2      
- 618   2              if (0 == RX_LEN())
- 619   2                  goto __wait;
- 620   2      
- 621   2              cmd = ymodem_check_data_packet(rx);
- 622   2      #if (USE_PRINTF_DEBUG == 1)
- 623   2              Uartx_Printf(OTA_INFO_OUT_UART, "cmd: %bd.\r\n", cmd);
- 624   2      #endif
- 625   2      
- 626   2              if (YM_ACK == cmd) // EOT
- 627   2              {
- 628   3                  ymodem_putchar(YM_ACK);
- 629   3                  ymodem_putchar(YM_PUT_C);
- 630   3                  timeout = YM_RECV_TIMEOUT;
- 631   3                  goto __wait;
- 632   3              }
- 633   2      
- 634   2              if ((cmd != ym_ok) && (cmd != YM_NACK))
- 635   2                  return cmd;
- 636   2              else
- 637   2              {
- 638   3                  if ((SOH == RX_HEAD()) && 0 == RX_FRAME(PACKET_SEQNO_INDEX))
- 639   3                  {
- 640   4                      ymodem_putchar(YM_ACK); // 最后一次应答
- 641   4                      return ym_ok;
- 642   4                  }
- 643   3              }
- 644   2          }
- 645   1          return ym_rec_timeout;
- 646   1      }
- 647          
- 648          /**
- 649           * @brief       按Ymodem接收文件数据并写入用户FLASH.
- 650           * @version V1.0.0,2022/01/18
- 651           * @details
- 652           * @param       None
- 653           * @retval      None
- 654           */
- 655          ym_err_t Ymodem_Download(ymodem_t ym, uartx_rx_t rx)
- 656          {
- 657   1          ym_err_t ym_res;
- 658   1      
- 659   1          if (NULL == ym || NULL == rx)
- 660   1              return ym_err_other;
- 661   1      
- 662   1          Uartx_Printf(OTA_WORK_UART, "\r\n\r\n Waiting for the file to be sent ... (press 'a' to abort)\r\n");
- 663   1      
- 664   1          ym_res = ymodem_handshake(ym, rx);
- 665   1          if (ym_res != ym_ok)
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 12  
-
- 666   1              return ym_res;
- 667   1      #if (USE_PRINTF_DEBUG == 1)
- 668   1          Uartx_Printf(OTA_INFO_OUT_UART, "Handshake succeeded.\r\n");
- 669   1      #endif
- 670   1          ym_res = ymodem_do_trans(ym, rx);
- 671   1          if (ym_res != ym_ok)
- 672   1              return ym_res;
- 673   1      #if (USE_PRINTF_DEBUG == 1)
- 674   1          Uartx_Printf(OTA_INFO_OUT_UART, "Data frame reception completed.\r\n");
- 675   1      #endif
- 676   1          return ymodem_do_fin(ym, rx);
- 677   1      }
- 678          
- 679          /**
- 680           * @brief       GPIO初始化
- 681           * @details     对应功能引脚都需要初始化后使用
- 682           * @param       None
- 683           * @retval      None
- 684           */
- 685          static void Gpio_Init(void)
- 686          {
- 687   1          GPIO_InitTypeDef GPIO_InitStruct = {0};
- 688   1      
- 689   1      #if EXTERNAL_CRYSTAL
-                  P_SW2 = 0x80;
-                  XOSCCR = 0xC0;
-                  /*启动外部晶振11.0592MHz*/
-                  while (!(XOSCCR & 1))
-                      ;
-                  /*时钟不分频*/
-                  CLKDIV = 0x01;
-                  /*选择外部晶振*/
-                  CKSEL = 0x01;
-                  P_SW2 = 0x00;
-              #endif
- 701   1          /*手册提示，串口1、2、3、4的发送引脚必须设置为推挽输出*/
- 702   1          P_SW1 = 0x00; /*串口1引脚使用P3.0、P3.1*/
- 703   1          /*设置P0.7为推免输出*/
- 704   1          GPIO_InitStruct.Mode = GPIO_OUT_PP;
- 705   1          GPIO_InitStruct.Pin = GPIO_Pin_7;
- 706   1          GPIO_IOInit(GPIO_P0, &GPIO_InitStruct);
- 707   1          // /*设置P1.0为准双向口*/
- 708   1          GPIO_InitStruct.Mode = GPIO_PullUp;
- 709   1          GPIO_InitStruct.Pin = GPIO_Pin_0;
- 710   1          GPIO_IOInit(GPIO_P1, &GPIO_InitStruct);
- 711   1          /*设置P1.1为推免输出*/
- 712   1          GPIO_InitStruct.Mode = GPIO_OUT_PP;
- 713   1          GPIO_InitStruct.Pin = GPIO_Pin_1;
- 714   1          GPIO_IOInit(GPIO_P1, &GPIO_InitStruct);
- 715   1          // /*设置P1.0、P1.1为推免输出*/
- 716   1          // GPIO_InitStruct.Mode = GPIO_OUT_PP;
- 717   1          // GPIO_InitStruct.Pin = GPIO_Pin_0 | GPIO_Pin_1;
- 718   1          // GPIO_IOInit(GPIO_P1, &GPIO_InitStruct);
- 719   1          /*设置P3.0为准双向口*/
- 720   1          GPIO_InitStruct.Mode = GPIO_PullUp;
- 721   1          GPIO_InitStruct.Pin = GPIO_Pin_0;
- 722   1          GPIO_IOInit(GPIO_P3, &GPIO_InitStruct);
- 723   1          /*设置P3.1为推挽输出*/
- 724   1          GPIO_InitStruct.Mode = GPIO_OUT_PP;
- 725   1          GPIO_InitStruct.Pin = GPIO_Pin_1;
- 726   1          GPIO_IOInit(GPIO_P3, &GPIO_InitStruct);
- 727   1      }
-C51 COMPILER V9.60.0.0   MAIN                                                              01/03/2023 21:14:42 PAGE 13  
-
- 728          
- 729          /**
- 730           * @brief       复位硬件寄存器
- 731           * @details     部分外设寄存器在上电时默认值并不为0，需要清除其默认值
- 732           * @param       None
- 733           * @retval      None
- 734           */
- 735          // static void Reset_Registers(void)
- 736          // {
- 737          //     AUXR = 0x00;
- 738          //     S2CON = 0x00;
- 739          //     SCON = 0;
- 740          //     TMOD = 0;
- 741          //     TL0 = 0;
- 742          //     TH0 = 0;
- 743          //     TH1 = 0;
- 744          //     TL1 = 0;
- 745          //     TCON = 0;
- 746          //     IAP_CMD = 0;
- 747          // }
+ 236           */
+ 237          // static void Reset_Registers(void)
+ 238          // {
+ 239          //     AUXR = 0x00;
+ 240          //     S2CON = 0x00;
+ 241          //     SCON = 0;
+ 242          //     TMOD = 0;
+ 243          //     TL0 = 0;
+ 244          //     TH0 = 0;
+ 245          //     TH1 = 0;
+ 246          //     TL1 = 0;
+ 247          //     TCON = 0;
+ 248          //     IAP_CMD = 0;
+ 249          // }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   3560    ----
-   CONSTANT SIZE    =    835    ----
-   XDATA SIZE       =      5     173
+   CODE SIZE        =   1234    ----
+   CONSTANT SIZE    =    280    ----
+   XDATA SIZE       =    515      32
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
    IDATA SIZE       =   ----    ----
-   BIT SIZE         =   ----       1
+   BIT SIZE         =   ----    ----
 END OF MODULE INFORMATION.
 
 

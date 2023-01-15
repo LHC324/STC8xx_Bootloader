@@ -12,6 +12,10 @@
         "absacc.h": "c",
         "stdlib.h": "c",
         "string.h": "c",
-        "STRING.H": "cpp"
+        "STRING.H": "cpp",
+        "stdio.h": "c",
+        "utils_ringbuffer.h": "c",
+        "w25qx.h": "c",
+        "cstdio": "c"
     }
 }

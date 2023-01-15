@@ -3,9 +3,9 @@
         {
             "name": "Target 1",
             "includePath": [
-                "g:\\STC_Workers\\OTA\\STC8XX_IAP\\STC8xx_BootLoader\\Inc",
+                "g:\\STC_Workers\\Nondestructive discharge instrument\\STC8xx_BootLoader\\Inc",
                 "C:\\Keil_v5\\C51\\INC",
-                "g:\\STC_Workers\\OTA\\STC8XX_IAP\\STC8xx_BootLoader\\Src"
+                "g:\\STC_Workers\\Nondestructive discharge instrument\\STC8xx_BootLoader\\Src"
             ],
             "defines": [
                 "__C51__",

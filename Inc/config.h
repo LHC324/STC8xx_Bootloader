@@ -16,8 +16,12 @@
 /**********************布尔变量定义**********************/
 
 /***********************************API配置接口***********************************/
+/*使用仿真模式*/
+#define USING_SIMULATE
 /*EEPROM使用MOVC指令*/
 #define EEPROM_USING_MOVC 1
+/*使用自动下载功能*/
+#define UAING_AUTO_DOWNLOAD 1
 /*flash用做EEPROM尺寸*/
 #define EEPROM_SIZE() (64U * 1024U)
 /*内部falsh开始地址*/
@@ -29,7 +33,13 @@
 /*使用外部晶振*/
 #define EXTERNAL_CRYSTAL 0
 /*调试是否启用串口*/
+#if defined USING_SIMULATE
+#define USE_PRINTF_DEBUG 0
+#else
 #define USE_PRINTF_DEBUG 1
+#endif
+/*启用环形缓冲区*/
+#define DWIN_USING_RB 0
 /*调试选项*/
 #define DEBUGGING 1
 /*迪文屏幕使用CRC校验*/
@@ -43,10 +53,15 @@
 /*BootLoader 版本号*/
 #define BOOTLOADER_VERSION "1.0.0"
 /*ISP开始地址, 高地址必须是偶数, 注意要预留ISP空间,本例程留10K*/
-#define ISP_ADDRESS 0xD400U
+#define ISP_ADDRESS 0xC800U
 /*用户FLASH长度, 保留个字节存放用户地址程序的跳转地址*/
-#define USER_FLASH_SIZE (ISP_ADDRESS - 3U)
+#define USER_FLASH_ADDR (ISP_ADDRESS - 3U)
 #define APP_JMP_ADDR (ISP_ADDRESS - 2U)
+/*OTA升级标志*/
+#define OTA_FLAG_ADDR 0x10000 //(0xFC00 + 0x200U)
+#define USER_FILE_SIZE_ADDR (OTA_FLAG_ADDR + 1U)
+#define OTA_FLAG_VALUE 0x5AA5
+
 /*扇区大小512B*/
 #define SECTOR_SIZE 0x200
 /*长跳转操作符代号*/
@@ -87,6 +102,7 @@
 typedef unsigned char uint8_t;
 typedef signed char int8_t;
 typedef unsigned short int uint16_t;
+typedef int int16_t;
 typedef unsigned long uint32_t;
 typedef signed long int32_t;
 typedef volatile __IO;
@@ -98,7 +114,7 @@ typedef bit bool;
 #define LED_G P11 /*RGB绿色LED用IO口P11*/
 #define LED_B P07 /*RGB蓝色LED用IO口P07*/
 /***********************************函数声明***********************************/
-static void Gpio_Init();
+// static void Gpio_Init();
 static void Reset_Registers(void);
 extern void U16_To_Dec(uint16_t num);
 extern void U32_To_Dec(uint32_t num);

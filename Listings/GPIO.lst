@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.0.0   GPIO                                                              01/03/2023 21:14:42 PAGE 1   
+C51 COMPILER V9.60.0.0   GPIO                                                              01/14/2023 22:17:11 PAGE 1   
 
 
 C51 COMPILER V9.60.0.0, COMPILATION OF MODULE GPIO
@@ -25,92 +25,92 @@ line level    source
   15           * @retval      成功返回0, 空操作返回1,错误返回2.
   16           * @version V2.0,2022/01/15
   17           */
-  18          uint8_t GPIO_IOInit(uint8_t GPIO, GPIO_InitTypeDef *GPIOx)
+  18          uint8_t GPIO_Inilize(uint8_t GPIO, GPIO_InitTypeDef *GPIOx)
   19          {
   20   1              if (GPIO > GPIO_P5)
-  21   1                      return 1; //空操作
+  21   1                      return 1; // 空操作
   22   1              if (GPIOx->Mode > GPIO_OUT_PP)
-  23   1                      return 2; //错误
+  23   1                      return 2; // 错误
   24   1      
   25   1              switch (GPIO)
   26   1              {
   27   2              case GPIO_P0:
   28   2              {
   29   3                      if (GPIOx->Mode == GPIO_PullUp)
-  30   3                              P0M1 &= ~GPIOx->Pin, P0M0 &= ~GPIOx->Pin; //上拉准双向口
+  30   3                              P0M1 &= ~GPIOx->Pin, P0M0 &= ~GPIOx->Pin; // 上拉准双向口
   31   3                      if (GPIOx->Mode == GPIO_HighZ)
-  32   3                              P0M1 |= GPIOx->Pin, P0M0 &= ~GPIOx->Pin; //浮空输入
+  32   3                              P0M1 |= GPIOx->Pin, P0M0 &= ~GPIOx->Pin; // 浮空输入
   33   3                      if (GPIOx->Mode == GPIO_OUT_OD)
-  34   3                              P0M1 |= GPIOx->Pin, P0M0 |= GPIOx->Pin; //开漏输出
+  34   3                              P0M1 |= GPIOx->Pin, P0M0 |= GPIOx->Pin; // 开漏输出
   35   3                      if (GPIOx->Mode == GPIO_OUT_PP)
-  36   3                              P0M1 &= ~GPIOx->Pin, P0M0 |= GPIOx->Pin; //推挽输出
+  36   3                              P0M1 &= ~GPIOx->Pin, P0M0 |= GPIOx->Pin; // 推挽输出
   37   3              }
   38   2              break;
   39   2              case GPIO_P1:
   40   2              {
   41   3                      if (GPIOx->Mode == GPIO_PullUp)
-  42   3                              P1M1 &= ~GPIOx->Pin, P1M0 &= ~GPIOx->Pin; //上拉准双向口
+  42   3                              P1M1 &= ~GPIOx->Pin, P1M0 &= ~GPIOx->Pin; // 上拉准双向口
   43   3                      if (GPIOx->Mode == GPIO_HighZ)
-  44   3                              P1M1 |= GPIOx->Pin, P1M0 &= ~GPIOx->Pin; //浮空输入
+  44   3                              P1M1 |= GPIOx->Pin, P1M0 &= ~GPIOx->Pin; // 浮空输入
   45   3                      if (GPIOx->Mode == GPIO_OUT_OD)
-  46   3                              P1M1 |= GPIOx->Pin, P1M0 |= GPIOx->Pin; //开漏输出
+  46   3                              P1M1 |= GPIOx->Pin, P1M0 |= GPIOx->Pin; // 开漏输出
   47   3                      if (GPIOx->Mode == GPIO_OUT_PP)
-  48   3                              P1M1 &= ~GPIOx->Pin, P1M0 |= GPIOx->Pin; //推挽输出
+  48   3                              P1M1 &= ~GPIOx->Pin, P1M0 |= GPIOx->Pin; // 推挽输出
   49   3              }
   50   2              break;
   51   2              case GPIO_P2:
   52   2              {
   53   3                      if (GPIOx->Mode == GPIO_PullUp)
-  54   3                              P2M1 &= ~GPIOx->Pin, P2M0 &= ~GPIOx->Pin; //上拉准双向口
-C51 COMPILER V9.60.0.0   GPIO                                                              01/03/2023 21:14:42 PAGE 2   
+  54   3                              P2M1 &= ~GPIOx->Pin, P2M0 &= ~GPIOx->Pin; // 上拉准双向口
+C51 COMPILER V9.60.0.0   GPIO                                                              01/14/2023 22:17:11 PAGE 2   
 
   55   3                      if (GPIOx->Mode == GPIO_HighZ)
-  56   3                              P2M1 |= GPIOx->Pin, P2M0 &= ~GPIOx->Pin; //浮空输入
+  56   3                              P2M1 |= GPIOx->Pin, P2M0 &= ~GPIOx->Pin; // 浮空输入
   57   3                      if (GPIOx->Mode == GPIO_OUT_OD)
-  58   3                              P2M1 |= GPIOx->Pin, P2M0 |= GPIOx->Pin; //开漏输出
+  58   3                              P2M1 |= GPIOx->Pin, P2M0 |= GPIOx->Pin; // 开漏输出
   59   3                      if (GPIOx->Mode == GPIO_OUT_PP)
-  60   3                              P2M1 &= ~GPIOx->Pin, P2M0 |= GPIOx->Pin; //推挽输出
+  60   3                              P2M1 &= ~GPIOx->Pin, P2M0 |= GPIOx->Pin; // 推挽输出
   61   3              }
   62   2              break;
   63   2              case GPIO_P3:
   64   2              {
   65   3                      if (GPIOx->Mode == GPIO_PullUp)
-  66   3                              P3M1 &= ~GPIOx->Pin, P3M0 &= ~GPIOx->Pin; //上拉准双向口
+  66   3                              P3M1 &= ~GPIOx->Pin, P3M0 &= ~GPIOx->Pin; // 上拉准双向口
   67   3                      if (GPIOx->Mode == GPIO_HighZ)
-  68   3                              P3M1 |= GPIOx->Pin, P3M0 &= ~GPIOx->Pin; //浮空输入
+  68   3                              P3M1 |= GPIOx->Pin, P3M0 &= ~GPIOx->Pin; // 浮空输入
   69   3                      if (GPIOx->Mode == GPIO_OUT_OD)
-  70   3                              P3M1 |= GPIOx->Pin, P3M0 |= GPIOx->Pin; //开漏输出
+  70   3                              P3M1 |= GPIOx->Pin, P3M0 |= GPIOx->Pin; // 开漏输出
   71   3                      if (GPIOx->Mode == GPIO_OUT_PP)
-  72   3                              P3M1 &= ~GPIOx->Pin, P3M0 |= GPIOx->Pin; //推挽输出
+  72   3                              P3M1 &= ~GPIOx->Pin, P3M0 |= GPIOx->Pin; // 推挽输出
   73   3              }
   74   2              break;
   75   2              case GPIO_P4:
   76   2              {
   77   3                      if (GPIOx->Mode == GPIO_PullUp)
-  78   3                              P4M1 &= ~GPIOx->Pin, P4M0 &= ~GPIOx->Pin; //上拉准双向口
+  78   3                              P4M1 &= ~GPIOx->Pin, P4M0 &= ~GPIOx->Pin; // 上拉准双向口
   79   3                      if (GPIOx->Mode == GPIO_HighZ)
-  80   3                              P4M1 |= GPIOx->Pin, P4M0 &= ~GPIOx->Pin; //浮空输入
+  80   3                              P4M1 |= GPIOx->Pin, P4M0 &= ~GPIOx->Pin; // 浮空输入
   81   3                      if (GPIOx->Mode == GPIO_OUT_OD)
-  82   3                              P4M1 |= GPIOx->Pin, P4M0 |= GPIOx->Pin; //开漏输出
+  82   3                              P4M1 |= GPIOx->Pin, P4M0 |= GPIOx->Pin; // 开漏输出
   83   3                      if (GPIOx->Mode == GPIO_OUT_PP)
-  84   3                              P4M1 &= ~GPIOx->Pin, P4M0 |= GPIOx->Pin; //推挽输出
+  84   3                              P4M1 &= ~GPIOx->Pin, P4M0 |= GPIOx->Pin; // 推挽输出
   85   3              }
   86   2              break;
   87   2              case GPIO_P5:
   88   2              {
   89   3                      if (GPIOx->Mode == GPIO_PullUp)
-  90   3                              P5M1 &= ~GPIOx->Pin, P5M0 &= ~GPIOx->Pin; //上拉准双向口
+  90   3                              P5M1 &= ~GPIOx->Pin, P5M0 &= ~GPIOx->Pin; // 上拉准双向口
   91   3                      if (GPIOx->Mode == GPIO_HighZ)
-  92   3                              P5M1 |= GPIOx->Pin, P5M0 &= ~GPIOx->Pin; //浮空输入
+  92   3                              P5M1 |= GPIOx->Pin, P5M0 &= ~GPIOx->Pin; // 浮空输入
   93   3                      if (GPIOx->Mode == GPIO_OUT_OD)
-  94   3                              P5M1 |= GPIOx->Pin, P5M0 |= GPIOx->Pin; //开漏输出
+  94   3                              P5M1 |= GPIOx->Pin, P5M0 |= GPIOx->Pin; // 开漏输出
   95   3                      if (GPIOx->Mode == GPIO_OUT_PP)
-  96   3                              P5M1 &= ~GPIOx->Pin, P5M0 |= GPIOx->Pin; //推挽输出
+  96   3                              P5M1 &= ~GPIOx->Pin, P5M0 |= GPIOx->Pin; // 推挽输出
   97   3              }
   98   2              default:
   99   2                      break;
  100   2              }
- 101   1              return 0; //成功
+ 101   1              return 0; // 成功
  102   1      
  103   1              // if(GPIO == GPIO_P0)
  104   1              // {
@@ -126,7 +126,7 @@ line level    source
  114   1              //      if(GPIOx->Mode == GPIO_OUT_OD)          P1M1 |=  GPIOx->Pin,    P1M0 |=  GPIOx->Pin;     //开漏输出
  115   1              //      if(GPIOx->Mode == GPIO_OUT_PP)          P1M1 &= ~GPIOx->Pin,    P1M0 |=  GPIOx->Pin;     //推挽输出
  116   1              // }
-C51 COMPILER V9.60.0.0   GPIO                                                              01/03/2023 21:14:42 PAGE 3   
+C51 COMPILER V9.60.0.0   GPIO                                                              01/14/2023 22:17:11 PAGE 3   
 
  117   1              // if(GPIO == GPIO_P2)
  118   1              // {

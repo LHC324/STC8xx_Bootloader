@@ -81,9 +81,7 @@ typedef struct
 } Uart_HandleTypeDef;
 
 #if (OTA_UART == 5U)
-#define RX_BUFFER_SIZE 1032U
-#define WAITTIMES 3000			 // 300*5ms
-#define TIMEOUTS 500			 // 5ms5300
+#define RX_BUFFER_SIZE 2048U	 /*此处必须是2^n, 否则环形缓冲区存储出错：x%s = x&(s - 1)*/
 #define OTA_INFO_OUT_UART &Uart1 // 0
 #define OTA_WORK_UART &Uart2
 #define OTA_UART_RI (S2CON & S2RI)

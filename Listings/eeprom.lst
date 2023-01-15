@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.0.0   EEPROM                                                            01/03/2023 21:14:42 PAGE 1   
+C51 COMPILER V9.60.0.0   EEPROM                                                            01/14/2023 22:17:10 PAGE 1   
 
 
 C51 COMPILER V9.60.0.0, COMPILATION OF MODULE EEPROM
@@ -62,7 +62,7 @@ line level    source
   52           * 函数名：char IapRead(unsigned short addr)
   53           * 功能：  读函数  读出一个字节
   54           * 参数：
-C51 COMPILER V9.60.0.0   EEPROM                                                            01/03/2023 21:14:42 PAGE 2   
+C51 COMPILER V9.60.0.0   EEPROM                                                            01/14/2023 22:17:10 PAGE 2   
 
   55           * 作者：
   56           * note：
@@ -126,7 +126,7 @@ line level    source
  114           **********************************************************/
  115          void IapErase(uint16_t addr)
  116          { // 使能IAP
-C51 COMPILER V9.60.0.0   EEPROM                                                            01/03/2023 21:14:42 PAGE 3   
+C51 COMPILER V9.60.0.0   EEPROM                                                            01/14/2023 22:17:10 PAGE 3   
 
  117   1              IapConfigWaitTime();
  118   1              IAP_CMD = 0x03;                 // 设置IAP擦除命令
@@ -190,7 +190,7 @@ MODULE INFORMATION:   STATIC OVERLAYABLE
    CODE SIZE        =    410    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----      23
-C51 COMPILER V9.60.0.0   EEPROM                                                            01/03/2023 21:14:42 PAGE 4   
+C51 COMPILER V9.60.0.0   EEPROM                                                            01/14/2023 22:17:10 PAGE 4   
 
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----

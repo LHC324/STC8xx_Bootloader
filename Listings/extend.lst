@@ -1,4 +1,4 @@
-C51 COMPILER V9.60.0.0   EXTEND                                                            01/03/2023 21:14:42 PAGE 1   
+C51 COMPILER V9.60.0.0   EXTEND                                                            01/08/2023 10:46:36 PAGE 1   
 
 
 C51 COMPILER V9.60.0.0, COMPILATION OF MODULE EXTEND
@@ -62,7 +62,7 @@ line level    source
   52          // {
   53          //     uint8_t i, k;
   54          //     static uint8_t tmp[10];
-C51 COMPILER V9.60.0.0   EXTEND                                                            01/03/2023 21:14:42 PAGE 2   
+C51 COMPILER V9.60.0.0   EXTEND                                                            01/08/2023 10:46:36 PAGE 2   
 
   55          //     for (i = 8; i > 0; i--)
   56          //     {

@@ -1,0 +1,449 @@
+A51 MACRO ASSEMBLER  STARTUP_STC8A                                                        01/07/2023 21:31:21 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.2.7.0
+OBJECT MODULE PLACED IN .\Objects\startup_stc8a.obj
+ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.EXE startup_stc8a.s SET(LARGE) DEBUG PRINT(.\Listings\startup_stc8a.lst) OB
+                      JECT(.\Objects\startup_stc8a.obj) EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     ;-------------------------------------------------------------------------
+                       2     ;                            FILE DESCRIPTION                            ;
+                       3     ;-------------------------------------------------------------------------
+                       4     ;-------------------------------------------------------------------------
+                       5     ;  - File name     : startup_stc8a.s
+                       6     ;  - Author        : zeweni
+                       7     ;  - Update date   : 2021.03.25
+                       8     ;  - Copyright(C)  : 2021-2021 zeweni. All rights reserved.
+                       9     ;-------------------------------------------------------------------------
+                      10     ;-------------------------------------------------------------------------
+                      11     ;                            COPYRIGHT NOTICE                            ;
+                      12     ;-------------------------------------------------------------------------
+                      13     ;
+                      14     ; * Copyright (C) 2021, zeweni (17870070675@163.com)
+                      15     ;
+                      16     ; * This file is part of Ant Real Time Operating System.
+                      17     ;
+                      18     ; * Ant Real Time Operating System is free software: you can redistribute 
+                      19     ; * it and/or modify it under the terms of the Apache-2.0 License.
+                      20     ; 
+                      21     ; * Ant Real Time Operating System is distributed in the hope that it will 
+                      22     ; * be useful,but WITHOUT ANY WARRANTY; without even the implied warranty 
+                      23     ; * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+                      24     ; * Apache-2.0 License License for more details.
+                      25     ; 
+                      26     ; * You should have received a copy of the Apache-2.0 License.Ant Real Time
+                      27     ; * Operating System. If not, see <http://www.apache.org/licenses/>.
+                      28     
+                      29     ;-------------------------------------------------------------------------
+                      30     ;                                CONFIG                                  ;
+                      31     ;-------------------------------------------------------------------------
+                      32     $nomod51 
+                      33     
+                      34     ;------------------------------------------------------------------------
+                      35     ;  用户上电初始化内存
+                      36     ;  值得注意的是，这里的设置主要是影响堆栈和可重入函数。
+                      37     ;  如果你想真正指明内存大小，请在Keil的配置页面Target右下方填写设
+                             置。
+                      38     ;  User-defined <h> Power-On Initialization of Memory.
+                      39     ;  The length of XDATA memory in bytes.
+                      40     ;  It is worth noting that the settings here mainly affect the stack and 
+                      41     ;  reentrant functions.
+                      42     ;  If you really want to indicate the memory size, please fill in the 
+                      43     ;  settings at the bottom right of target on keil's configuration page.
+                      44     ;
+                      45     ;  With the following EQU statements the initialization of memory
+                      46     ;  at processor reset can be defined:
+                      47     ;------------------------------------------------------------------------
+                      48     
+                      49     ; @name    IDATALEN
+                      50     ; @brief   IDATA的内存范围是<0x0-0x100>.
+                      51     ;          IDATA memory size <0x0-0x100>.
+                      52     ; @Note    IDATA内存的绝对起始地址始终为0,IDATA空间在物理上与数据和�
+                             �区域重叠。
+                      53     ;          The absolute start-address of IDATA memory is always 0
+                      54     ;          The IDATA space overlaps physically the DATA and BIT areas.
+  00EE                55     IDATALEN        EQU     0EEH   
+A51 MACRO ASSEMBLER  STARTUP_STC8A                                                        01/07/2023 21:31:21 PAGE     2
+
+                      56     
+                      57     
+                      58     ; @name    XDATASTART
+                      59     ; @brief   XDATA的内存范围是<0x0-0xFFFF>.
+                      60     ;          XDATA memory start address <0x00-0xFFFF>.
+                      61     ; @Note    这里设置IDATA内存的绝对起始地址。
+                      62     ;          The absolute start address of XDATA memory.
+  0000                63     XDATASTART      EQU     0     
+                      64     
+                      65     
+                      66     ; @name    XDATALEN
+                      67     ; @brief   XDATA的内存范围是<0x0-0x1FFF>.
+                      68     ;          XDATA memory size <0x0-0x1FFF>.
+                      69     ; @Note    设置XDATA内存的字节长度,根据你实际的芯片XRAM大小来确定。
+                      70     ;          target on keil's configuration page.
+  1FFF                71     XDATALEN        EQU     01FFFH     
+                      72     
+                      73     
+                      74     ; @name    PDATASTART
+                      75     ; @brief   PDATA的内存范围是<0x0-0xFF>.
+                      76     ;          PDATA memory start address <0x00-0xFF>.
+                      77     ; @Note    这里设置IDATA内存的绝对起始地址。
+                      78     ;          The absolute start address of XDATA memory.
+  0000                79     PDATASTART      EQU     0     
+                      80     
+                      81     
+                      82     ; @name    PDATALEN
+                      83     ; @brief   PDATA的内存范围是<0x0-0xFF>.
+                      84     ;          PDATA memory size <0x0-0xFF>.
+                      85     ; @Note    这里设置IDATA内存的字节长度。
+                      86     ;          The length of XDATA memory in bytes.
+  0000                87     PDATALEN        EQU     0      
+                      88             
+                      89             
+                      90     ;-------------------------------------------------------------------------
+                      91     ;  用户上电初始化可重入仿真堆栈
+                      92     ;  值得注意的是，这里的设置主要是影响堆栈和可重入函数。
+                      93     ;  如果你想真正指明内存大小，请在Keil的配置页面Target右下方填写设
+                             置。
+                      94     ;  Reentrant Stack Initialization
+                      95     ;  The length of XDATA memory in bytes.
+                      96     ;  It is worth noting that the settings here mainly affect the stack and 
+                      97     ;  reentrant functions.
+                      98     ;  If you really want to indicate the memory size, please fill in the 
+                      99     ;  settings at the bottom right of target on keil's configuration page.
+                     100     ;
+                     101     ;  The following EQU statements define the stack pointer for reentrant
+                     102     ;  functions and initialized it:
+                     103     ;-------------------------------------------------------------------------
+                     104     
+                     105     ; @name    IBPSTACK
+                     106     ; @brief   使能小模型可重入堆栈。
+                     107     ;          Enable SMALL model reentrant stack.
+                     108     ; @Note    小模型内存中可重入函数的堆栈空间。
+                     109     ;          Stack space for reentrant functions in the SMALL model.
+  0000               110     IBPSTACK        EQU     0   ; set to 1 if small reentrant is used.
+                     111             
+                     112             
+                     113     ; @name    IBPSTACKTOP
+                     114     ; @brief   小型模型堆栈的结束地址范围<0x0-0xFF>。
+                     115     ;          End address of SMALL model stack <0x0-0xFF>.
+                     116     ; @Note    将堆栈的顶部设置到最高位置。
+                     117     ;          Set the top of the stack to the highest location.
+  0100               118     IBPSTACKTOP     EQU     0xFF +1     ; default 0FFH+1  
+                     119     
+                     120     
+A51 MACRO ASSEMBLER  STARTUP_STC8A                                                        01/07/2023 21:31:21 PAGE     3
+
+                     121     ; @name    XBPSTACK
+                     122     ; @brief   使能大模型可重入堆栈。
+                     123     ;          Enable LARGE model reentrant stack.
+                     124     ; @Note    大模型内存中可重入函数的堆栈空间。
+                     125     ;          Stack space for reentrant functions in the LARGE model.
+  0000               126     XBPSTACK        EQU     0   ; set to 1 if large reentrant is used.
+                     127             
+                     128             
+                     129     ; @name    XBPSTACKTOP
+                     130     ; @brief   大模型堆栈的结束地址范围<0x0-0xFFFF>。
+                     131     ;          End address of SMALL model stack <0x0-0xFFFF>.
+                     132     ; @Note    将堆栈的顶部设置到最高位置。
+                     133     ;          Set the top of the stack to the highest location.
+  0401               134     XBPSTACKTOP     EQU     0x400 + 1   ; default 0FFFFH+1 
+                     135     
+                     136     
+                     137     ; @name    PBPSTACK
+                     138     ; @brief   外部低256字节内存可重入堆栈。
+                     139     ;          The external low 256 byte out 
+                     140     ;          storage model can be reentered into the stack..
+                     141     ; @Note    外部低256字节内存中可重入函数的堆栈空间。
+                     142     ;          Stack space for reentrant functions in the LARGE model.
+  0000               143     PBPSTACK        EQU     0   ; set to 1 is enable.
+                     144             
+                     145             
+                     146     ; @name    PBPSTACKTOP
+                     147     ; @brief   大模型堆栈的结束地址范围<0x0-0xFF>。
+                     148     ;          End address of SMALL model stack <0x0-0xFF>.
+                     149     ; @Note    将堆栈的顶部设置到最高位置。
+                     150     ;          Set the top of the stack to the highest location.
+  0001               151     PBPSTACKTOP     EQU     0 + 1   ; default 0FFH+1 
+                     152     
+                     153     
+                     154     ; @name    PPAGEENABLE
+                     155     ; @brief   启用pdata内存页初始化
+                     156     ;          Enable pdata memory page initalization
+                     157     ; @Note    定义用于PDATA变量的扩展数据页。
+                     158     ;          内存页，用于使用具有64KB扩展数据RAM的紧凑型。
+                     159     ;          PPAGE必须与链接器调用中设置的PPAGE一致。
+                     160     ;          Stack space for reentrant functions in the LARGE model.
+                     161     ;          Memory Page for Using the Compact Model with 64 KByte xdata RAM.
+                     162     ;          PPAGE must conform with the PPAGE set in the linker invocation.
+  0000               163     PPAGEENABLE     EQU     0       ; set to 1 if pdata object are used.
+                     164     
+                     165     
+                     166     ; @name    PPAGE
+                     167     ; @brief   内存页的范围<0x0-0xFF>。
+                     168     ;          PPAGE number <0x0-0xFF>.
+                     169     ; @Note    用于PDATA变量的页的最上面的256字节地址。
+                     170     ;          uppermost 256-byte address of the page used for PDATA variables.
+  0000               171     PPAGE           EQU     0  
+                     172     
+                     173     
+                     174     ; @name    PPAGE_SFR
+                     175     ; @brief   提供最高地址字节<0x0-0xFF>的SFR地址。
+                     176     ;          SFR address which supplies uppermost address byte <0x0-0xFF>.
+                     177     ; @Note    大多数8051变体使用P2作为最高地址字节。
+                     178     ;          most 8051 variants use P2 as uppermost address byte.
+  00A0               179     PPAGE_SFR       DATA    0A0H
+                     180     
+                     181     
+                     182     ;-------------------------------------------------------------------------
+                     183     ;  配置硬件仿真需要占用的XDATA空间
+                     184     ;  值得注意的是，这里的设置主要是影响堆栈和可重入函数。
+                     185     ;  如果你想真正指明内存大小，请在Keil的配置页面Target右下方填写设
+                             置。
+A51 MACRO ASSEMBLER  STARTUP_STC8A                                                        01/07/2023 21:31:21 PAGE     4
+
+                     186     ;  XDATA space for hardware emulation configuration
+                     187     ;  The length of XDATA memory in bytes.
+                     188     ;  It is worth noting that the settings here mainly affect the stack and 
+                     189     ;  reentrant functions.
+                     190     ;  If you really want to indicate the memory size, please fill in the 
+                     191     ;  settings at the bottom right of target on keil's configuration page.
+                     192     ;
+                     193     ;  如果你不需要硬件仿真，那么你可以忽略这部分代码。
+                     194     ;  If you don't need hardware emulation, 
+                     195     ;  you can ignore this part of the code.
+                     196     ;-------------------------------------------------------------------------
+                     197     
+                     198     ; @name    DEBUCTRL
+                     199     ; @brief   硬件仿真占用XDATA空间的开关。
+                     200     ;          Hardware simulation takes up XDATA space switch..
+                     201     ; @Note    如果你不配置它，编译器将不会为你预留出仿真需要的XDATA内
+                             存空间。
+                     202     ;          If you don't configure it, the compiler won't reserve 
+                     203     ;          XDATA memory for you.
+                     204     
+  0001               205     DEBUCTRL        EQU     1   ; Set to 1 to reserve XDATA space for hardware simulation.
+                     206     
+                     207     
+                     208     ; @name    DEBUGXDATALEN
+                     209     ; @brief   硬件仿真debug需要占用XDATA的大小.
+                     210     ;          Hardware simulation debug needs to occupy the size of XDATA.
+                     211     ; @Note    这里设置denbug占用XDATA内存的字节长度。
+                     212     ;          一般是最后768个字节，如果有不同，请自己根据STC-ISP助手上�
+                             ��说明进行修改。
+                     213     ;          Set the byte length of XDATA memory occupied by debug.
+                     214     ;          Generally, it is the last 768 bytes. If it is different, 
+                     215     ;          please modify it according to the instructions on stc-isp assistant.
+                     216     
+  0300               217     DEBUGXDATALEN    EQU    300H   
+                     218             
+                     219     ;-------------------------------------------------------------------------
+                     220     ;                          STARTUP FUNCTIONS                             ;
+                     221     ;-------------------------------------------------------------------------
+                     222     
+                     223     ; Standard SFR Symbols 
+  00E0               224     ACC     DATA    0E0H
+  00F0               225     B       DATA    0F0H
+  0081               226     SP      DATA    81H
+  0082               227     DPL     DATA    82H
+  0083               228     DPH     DATA    83H
+                     229     
+                     230                     NAME    ?C_STARTUP
+                     231                                             
+                     232     ?C_C51STARTUP   SEGMENT   CODE
+                     233     ?STACK          SEGMENT   IDATA
+                     234     
+----                 235                     RSEG    ?STACK
+0000                 236                     DS      1
+                     237     
+                     238                     EXTRN CODE (?C_START)
+                     239                     PUBLIC  ?C_STARTUP
+                     240     
+                     241     ;**
+                     242     ; * @name    C_STARTUP
+                     243     ; * @brief   启动文件的首地址段.
+                     244     ; *          The first address segment of the startup file.
+                     245     ;**
+----                 246                     CSEG    AT      0
+0000 020000   F      247     ?C_STARTUP:     LJMP    STARTUP1
+                     248     
+----                 249                     RSEG    ?C_C51STARTUP
+A51 MACRO ASSEMBLER  STARTUP_STC8A                                                        01/07/2023 21:31:21 PAGE     5
+
+                     250     
+0000                 251     STARTUP1:
+                     252     
+                     253     IF IDATALEN <> 0
+0000 78ED            254                     MOV     R0,#IDATALEN - 1
+0002 E4              255                     CLR     A
+0003 F6              256     IDATALOOP:      MOV     @R0,A
+0004 D8FD            257                     DJNZ    R0,IDATALOOP
+                     258     ENDIF
+                     259     
+                     260     ;**
+                     261     ; * @name    DEBUCTRL
+                     262     ; * @brief   处理硬件仿真占用XDATA预留空间。
+                     263     ; *          Processing hardware simulation 
+                     264     ; *          takes up XDATA reserved space.
+                     265     ;**
+                     266     IF DEBUCTRL <> 0
+  0101               267                             XBPSTACK_ACTTOP EQU (XBPSTACKTOP - DEBUGXDATALEN)
+  1CFF               268                             XDATA_ADCTLEN   EQU (XDATALEN - DEBUGXDATALEN)
+                     269     ELSE
+                                                     XBPSTACK_ACTTOP EQU XBPSTACKTOP
+                                                     XDATA_ADCTLEN   EQU XDATALEN
+                             ENDIF
+                     273     
+                     274     ;**
+                     275     ; * @name    XDATA_ADCTLEN
+                     276     ; * @brief   初始化XDATA空间,以用于仿真栈寻址。
+                     277     ; *          Initialize XDATA space for emulation stack addressing.
+                     278     ;**
+                     279     IF XDATA_ADCTLEN <> 0
+0006 900000          280                     MOV     DPTR,#XDATASTART
+0009 7FFF            281                     MOV     R7,#LOW (XDATA_ADCTLEN)
+                     282       IF (LOW (XDATA_ADCTLEN)) <> 0
+000B 7E1D            283                     MOV     R6,#(HIGH (XDATA_ADCTLEN)) +1
+                     284       ELSE
+                                             MOV     R6,#HIGH (XDATA_ADCTLEN)
+                               ENDIF
+000D E4              287                     CLR     A
+000E F0              288     XDATALOOP:      MOVX    @DPTR,A
+000F A3              289                     INC     DPTR
+0010 DFFC            290                     DJNZ    R7,XDATALOOP
+0012 DEFA            291                     DJNZ    R6,XDATALOOP
+                     292     ENDIF
+                     293             
+                     294     ;**
+                     295     ; * @name    PPAGEENABLE
+                     296     ; * @brief   初始化PDATA空间,以用于仿真栈寻址。
+                     297     ; *          Initialize PDATA space for emulation stack addressing.
+                     298     ;**
+                     299     IF PPAGEENABLE <> 0
+                                             MOV     PPAGE_SFR,#PPAGE
+                             ENDIF
+                     302     
+                     303     IF PDATALEN <> 0
+                                             MOV     R0,#LOW (PDATASTART)
+                                             MOV     R7,#LOW (PDATALEN)
+                                             CLR     A
+                             PDATALOOP:      MOVX    @R0,A
+                                             INC     R0
+                                             DJNZ    R7,PDATALOOP
+                             ENDIF
+                     311     
+                     312     ;**
+                     313     ; * @name    IBPSTACK
+                     314     ; * @brief   初始化位于IDATA的仿真栈。
+                     315     ; *          Initialize the emulation stack at IDA TA.
+A51 MACRO ASSEMBLER  STARTUP_STC8A                                                        01/07/2023 21:31:21 PAGE     6
+
+                     316     ;**
+                     317     IF IBPSTACK <> 0
+                             EXTRN DATA (?C_IBP)
+                             
+                                             MOV     ?C_IBP,#LOW IBPSTACKTOP
+                             ENDIF
+                     322     
+                     323     ;**
+                     324     ; * @name    XBPSTACK
+                     325     ; * @brief   初始化位于XDATA的仿真栈。
+                     326     ; *          Initialize the emulation stack at IDA TA.
+                     327     ;**
+                     328     IF XBPSTACK <> 0
+                             EXTRN DATA (?C_XBP)
+                             
+                                             MOV     ?C_XBP,#HIGH XBPSTACK_ACTTOP
+                                             MOV     ?C_XBP+1,#LOW XBPSTACK_ACTTOP
+                             ENDIF
+                     334     
+                     335     ;**
+                     336     ; * @name    PBPSTACK
+                     337     ; * @brief   初始化位于PDATA的仿真栈。
+                     338     ; *          Initialize the emulation stack at IDA TA.
+                     339     ;**
+                     340     IF PBPSTACK <> 0
+                             EXTRN DATA (?C_PBP)
+                                             MOV     ?C_PBP,#LOW PBPSTACKTOP
+                             ENDIF
+                     344     
+0014 758100   F      345                     MOV     SP,#?STACK-1
+                     346     
+                     347                                     
+                     348     ; This code is required if you use L51_BANK.A51 with Banking Mode 4
+                     349     ;<h> Code Banking
+                     350     ; <q> Select Bank 0 for L51_BANK.A51 Mode 4
+                     351     
+                             
+                             
+                                             
+                             
+                     356     
+                     357     ;-------------------------------------------------------------------------
+                     358     ;                              ISR FUNCTIONS                             ;
+                     359     ;-------------------------------------------------------------------------
+                     360     
+                     361     ;**
+                     362     ; * @name    TIMER0_ISRQ_Handler
+                     363     ; * @brief   MCU TIMER0 Interrupt request service function
+                     364     ; * @param   None
+                     365     ; * @return  None
+                     366     ;**
+                     367     
+                     368     
+                     369             
+0017 020000   F      370     LJMP    ?C_START
+                     371     END
+                             
+                             
+                             
+                             
+                             
+                             
+                             
+                             
+A51 MACRO ASSEMBLER  STARTUP_STC8A                                                        01/07/2023 21:31:21 PAGE     7
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+?C_C51STARTUP. . .  C SEG    001AH       REL=UNIT
+?C_START . . . . .  C ADDR   -----       EXT
+?C_STARTUP . . . .  C ADDR   0000H   A   
+?STACK . . . . . .  I SEG    0001H       REL=UNIT
+ACC. . . . . . . .  D ADDR   00E0H   A   
+B. . . . . . . . .  D ADDR   00F0H   A   
+DEBUCTRL . . . . .  N NUMB   0001H   A   
+DEBUGXDATALEN. . .  N NUMB   0300H   A   
+DPH. . . . . . . .  D ADDR   0083H   A   
+DPL. . . . . . . .  D ADDR   0082H   A   
+IBPSTACK . . . . .  N NUMB   0000H   A   
+IBPSTACKTOP. . . .  N NUMB   0100H   A   
+IDATALEN . . . . .  N NUMB   00EEH   A   
+IDATALOOP. . . . .  C ADDR   0003H   R   SEG=?C_C51STARTUP
+PBPSTACK . . . . .  N NUMB   0000H   A   
+PBPSTACKTOP. . . .  N NUMB   0001H   A   
+PDATALEN . . . . .  N NUMB   0000H   A   
+PDATASTART . . . .  N NUMB   0000H   A   
+PPAGE. . . . . . .  N NUMB   0000H   A   
+PPAGEENABLE. . . .  N NUMB   0000H   A   
+PPAGE_SFR. . . . .  D ADDR   00A0H   A   
+SP . . . . . . . .  D ADDR   0081H   A   
+STARTUP1 . . . . .  C ADDR   0000H   R   SEG=?C_C51STARTUP
+XBPSTACK . . . . .  N NUMB   0000H   A   
+XBPSTACKTOP. . . .  N NUMB   0401H   A   
+XBPSTACK_ACTTOP. .  N NUMB   0101H   A   
+XDATALEN . . . . .  N NUMB   1FFFH   A   
+XDATALOOP. . . . .  C ADDR   000EH   R   SEG=?C_C51STARTUP
+XDATASTART . . . .  N NUMB   0000H   A   
+XDATA_ADCTLEN. . .  N NUMB   1CFFH   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)
